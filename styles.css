@@ -716,7 +716,7 @@ legend { font-size: .8rem; font-weight: 700; color: var(--muted); padding: 0 4px
   font-feature-settings: "tnum" 1;
 }
 .marca h1 { font-size: 1.12rem; font-weight: 800; letter-spacing: -.02em; }
-.input-titulo { font-family: var(--fuente-titulos) !important; font-weight: 800; letter-spacing: -.02em; } /* gana a la regla general de inputs */
+.input-titulo { font-family: var(--fuente-titulos) !important; letter-spacing: -.02em; } /* gana a la regla general de inputs */
 .stat-valor { font-weight: 800; letter-spacing: -.03em; }
 .grande { letter-spacing: -.03em; }
 .tab { font-weight: 700; letter-spacing: -.01em; }
@@ -2140,7 +2140,6 @@ input[inputmode="decimal"], input[inputmode="numeric"], input[type="number"] {
     transition: transform var(--anim-rapida) var(--curva);
   }
   [data-plegable].plegado > .seccion-cab::after, [data-plegable].plegado > .promocion-cab::after { transform: translateY(-50%) rotate(-90deg); }
-  [data-plegable].plegado > :not(.seccion-cab):not(.promocion-cab) { display: none !important; }
   [data-plegable].plegado > .seccion-cab, [data-plegable].plegado > .promocion-cab { margin-bottom: 0; }
   [data-plegable].plegado { padding-top: 10px; padding-bottom: 10px; }
 
@@ -2594,7 +2593,7 @@ dialog { border: 1px solid var(--border-fuerte); border-image: none; }
 
 /* --- Resumen superior: cuatro tarjetas de altura pareja --- */
 .resumen {
-  display: grid; grid-template-columns: repeat(2, minmax(130px, .7fr)) minmax(0, 1fr) minmax(0, 1.35fr);
+  display: grid; grid-template-columns: minmax(140px, .8fr) minmax(140px, .8fr) minmax(0, 1.6fr);   /* v24: “Tu progreso” va en su propia fila */
   gap: 0; align-items: stretch; margin-bottom: 0;
 }
 .resumen .stat { display: flex; flex-direction: column; gap: 4px; padding: 16px 18px; }
@@ -2651,10 +2650,11 @@ dialog { border: 1px solid var(--border-fuerte); border-image: none; }
 }
 /* Promedio, acumulado y prioridad en una fila; "Tu progreso" ocupa todo el ancho debajo
    (así ya no queda espacio vacío bajo los promedios cuando el progreso es largo) */
-.resumen { grid-template-columns: minmax(140px, .8fr) minmax(140px, .8fr) minmax(0, 1.6fr); }
 .resumen .stat-mensaje { grid-column: 1 / -1; border-left: 0 !important; border-top: 1px solid var(--border); }
 .stat-mensaje .progreso-puntos { grid-template-columns: repeat(auto-fit, minmax(min(100%, 320px), 1fr)); column-gap: 24px; }
 @media (max-width: 1180px) {
-  .resumen { grid-template-columns: 1fr 1fr; }
   .resumen .stat-prioridad { grid-column: 1 / -1; border-left: 0 !important; border-top: 1px solid var(--border); }
 }
+
+/* v25 · Aviso cuando una sección no se puede dibujar */
+.aviso-seccion { margin: 0; padding: 12px 14px; border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--warn-soft); color: var(--text); font-size: .88rem; }

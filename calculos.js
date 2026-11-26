@@ -811,6 +811,7 @@ const Calc = (() => {
       if (Math.abs(x1 - p) < 1e-6) return y1;
       if (x1 > p) {
         const [x0, y0] = tabla[i - 1];
+        if (!(x1 - x0 > 0)) return y1;   // v25: promedios repetidos o desordenados → sin división por cero
         return Math.round(y0 + ((p - x0) * (y1 - y0)) / (x1 - x0));
       }
     }
@@ -826,7 +827,10 @@ const Calc = (() => {
     const pares = [];
     for (const linea of String(texto).split(/\r?\n/)) {
       const m = linea.trim().match(/^(\d+[.,]\d+)\s*[\t;,| ]\s*(\d{2,4})\b/);
-      if (m) pares.push([Number(m[1].replace(',', '.')), Number(m[2])]);
+      if (!m) continue;
+      const prom = Number(m[1].replace(',', '.')), pts = Number(m[2]);
+      // v25: solo promedios 1,0–7,0 y puntajes hasta 1000; un promedio repetido se ignora (evita divisiones por cero)
+      if (prom >= 1 && prom <= 7 && pts <= 1000 && !pares.some(([x]) => Math.abs(x - prom) < 1e-9)) pares.push([prom, pts]);
     }
     if (pares.length < 2) return { ok: false, errores: 'No se encontraron filas "promedio puntaje".' };
     pares.sort((a, b) => a[0] - b[0]);

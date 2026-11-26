@@ -6,6 +6,29 @@
  * `REF` (datos-referencia.js) y la extracción de notas desde texto en `Importador` (importador.js).
  */
 
+/* (v25) Dependencias: si datos-referencia.js, calculos.js o importador.js no cargaron (archivo faltante,
+ * caché a medias en GitHub Pages, error de sintaxis), se muestra un aviso claro en vez de una página en blanco. */
+(() => {
+  const faltan = [];
+  const R = typeof REF === 'object' && REF ? REF : null;
+  const C = typeof Calc === 'object' && Calc ? Calc : null;
+  const I = typeof Importador === 'object' && Importador ? Importador : null;
+  if (!R) faltan.push('datos-referencia.js');
+  else for (const k of ['NIVELES_ESCOLARES', 'ESCALAS_PAES', 'PRUEBAS_ENSAYO', 'CATALOGO_CORTES', 'GRUPOS_NEM', 'NEM_OFICIAL', 'AÑOS_MEDIA', 'TONO_ETAPA',
+    'METODOS_ESTUDIO', 'GUIA_EVALUACION', 'FRASES', 'CITAS', 'FERIADOS_CHILE', 'HITOS_REFERENCIA', 'UNIVERSIDADES_INFO']) if (!(k in R)) faltan.push(`REF.${k}`);
+  if (!C) faltan.push('calculos.js');
+  else for (const k of ['analizarAsignatura', 'priorizar', 'promedioGeneral', 'redondear', 'parsearNota', 'peso']) if (typeof C[k] !== 'function') faltan.push(`Calc.${k}`);
+  if (!I) faltan.push('importador.js');
+  else for (const k of ['normalizar', 'parsearTexto', 'parsearInforme']) if (typeof I[k] !== 'function') faltan.push(`Importador.${k}`);
+  if (!faltan.length) return;
+  const aviso = document.createElement('div');
+  aviso.setAttribute('role', 'alert');
+  aviso.style.cssText = 'position:fixed;inset:16px;z-index:9999;display:grid;place-content:center;gap:10px;padding:24px;border-radius:14px;background:#111114;color:#f4f4f5;border:1px solid #2e2e37;font:16px system-ui;text-align:center';
+  aviso.textContent = `Ruta Académica no pudo cargar completa (faltan: ${faltan.join(', ')}). Recarga con Ctrl+F5. Tus datos siguen guardados en este navegador.`;
+  document.body.appendChild(aviso);
+  throw new Error(`Dependencias faltantes: ${faltan.join(', ')}`);
+})();
+
 /* =========================================================
  * 1. Modelo de datos, perfiles y migración
  * ========================================================= */
@@ -28,6 +51,10 @@ const URL_TESSERACT = 'https://cdn.jsdelivr.net/npm/tesseract.js@5.1.1/dist/tess
 // Lector de PDF (pdf.js de Mozilla, versión fija): se descarga solo al subir un PDF; el archivo no sale del equipo
 const URL_PDFJS = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js';
 const URL_PDFJS_WORKER = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+// v25: hashes SRI de esas versiones exactas (si el CDN sirviera otro archivo, el navegador lo rechaza)
+const SRI_TESSERACT = 'sha384-GJqSu7vueQ9qN0E9yLPb3Wtpd7OrgK8KmYzC8T1IysG1bcvxvIO4qtYR/D3A991F';
+const SRI_PDFJS = 'sha384-/1qUCSGwTur9vjf/z9lmu/eCUYbpOTgSjmpbMQZ1/CtX2v/WcAIKqRv+U1DUCG6e';
+const SRI_PDFJS_WORKER = 'sha384-SnzOobpRMLXZ52iJvZm/C0fYw0OQemTXzTjIsdsfMcrCtCEe9qgzxTd3RSklO5x2';
 
 const uid = () => Math.random().toString(36).slice(2, 9) + Date.now().toString(36).slice(-4);
 const clonar = x => JSON.parse(JSON.stringify(x));
@@ -63,50 +90,193 @@ function nuevoPerfil(nombre = 'Perfil Principal') {
   };
 }
 
-function normalizarEvaluacion(ev) {
-  if (ev.tipo === 'bloque') {
-    return { ...ev, controles: (ev.controles || []).map(c => ({ id: c.id || uid(), nombre: c.nombre || 'Control', nota: typeof c.nota === 'number' ? c.nota : null })) };
-  }
-  return { ...ev, tipo: 'simple', nota: typeof ev.nota === 'number' ? ev.nota : null, pendiente: typeof ev.nota !== 'number' };
+/* ---------- Validación estricta de datos (v25) ----------
+ * Todo lo que viene de localStorage, de un respaldo JSON o de una tabla importada pasa por aquí:
+ * tipos, rangos y largos explícitos (nada de mezclar objetos a ciegas). Lo inválido se descarta o se
+ * reemplaza por un valor seguro, y se cuenta en `saneo.ajustes` para avisar al usuario.
+ */
+const saneo = { ajustes: 0 };
+const ajuste = valor => { saneo.ajustes++; return valor; };
+const esObjeto = x => x !== null && typeof x === 'object' && !Array.isArray(x);
+const lista = x => (Array.isArray(x) ? x : []);
+/** Identificadores: solo letras, números, guion y guion bajo (así nunca rompen un atributo HTML ni un selector). */
+const RE_ID = /^[A-Za-z0-9_-]{1,160}$/;
+const idSano = x => (typeof x === 'string' && RE_ID.test(x) ? x : null);
+/** Texto: sin caracteres de control y con largo máximo. */
+function textoSano(x, max, def = '') {
+  if (x === null || x === undefined) return def;
+  if (typeof x !== 'string' && typeof x !== 'number') return ajuste(def);
+  const t = String(x).replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F]/g, '');
+  if (t.length > max) ajuste();
+  return t.slice(0, max);
+}
+/** Número finito dentro de [min, max]; si no, null. */
+function numSano(x, min, max) {
+  if (x === null || x === undefined || x === '') return null;
+  const n = typeof x === 'number' ? x : NaN;
+  if (!Number.isFinite(n) || n < min || n > max) return ajuste(null);
+  return n;
+}
+/** Fecha 'AAAA-MM-DD' que existe en el calendario (rechaza 2026-02-31). */
+function fechaSana(x) {
+  if (typeof x !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(x)) return x ? ajuste('') : '';
+  const [a, m, d] = x.split('-').map(Number);
+  const f = new Date(a, m - 1, d);
+  return f.getFullYear() === a && f.getMonth() === m - 1 && f.getDate() === d ? x : ajuste('');
+}
+const LIMITE_ITEMS = 500;   // tope de elementos por lista: evita respaldos gigantes que congelen la página
+const listaAcotada = (x, max = LIMITE_ITEMS) => { const l = lista(x); if (l.length > max) ajuste(); return l.slice(0, max); };
+/** Id válido y no repetido dentro de su lista (si choca o es inválido, se genera uno nuevo). */
+function idUnico(x, usados) {
+  let id = idSano(x);
+  if (!id || usados.has(id)) { if (x !== undefined) ajuste(); id = uid(); }
+  usados.add(id);
+  return id;
 }
 
-/** Completa campos faltantes (datos de versiones anteriores, respaldos o edición manual). */
+function escalaSana(e) {
+  if (!esObjeto(e)) return { ...ESCALA_DEFECTO };
+  const min = numSano(e.min, -1000, 1000), max = numSano(e.max, -1000, 1000), apr = numSano(e.aprobacion, -1000, 1000);
+  if (min === null || max === null || apr === null || !(min < max) || apr < min || apr > max) return ajuste({ ...ESCALA_DEFECTO });
+  return { min, max, aprobacion: apr };
+}
+/** Nota dentro de la escala; fuera de rango o no numérica → null (queda pendiente, no rompe promedios). */
+const notaSana = (x, E) => numSano(x, E.min, E.max);
+
+function normalizarEvaluacion(ev, E = ESCALA_DEFECTO, usados = new Set()) {
+  if (!esObjeto(ev)) return null;
+  const base = {
+    id: idUnico(ev.id, usados), nombre: textoSano(ev.nombre, 80, 'Evaluación') || 'Evaluación',
+    peso: numSano(ev.peso, 0, 1000),
+  };
+  if (ev.fecha) base.fecha = fechaSana(ev.fecha);
+  if (typeof ev.origen === 'string' && /^[a-z-]{1,20}$/.test(ev.origen)) base.origen = ev.origen;
+  if (ev.tipo === 'bloque') {
+    const usadosC = new Set();
+    return { ...base, tipo: 'bloque', controles: listaAcotada(ev.controles, 100).filter(esObjeto).map(c => ({
+      id: idUnico(c.id, usadosC), nombre: textoSano(c.nombre, 80, 'Control') || 'Control', nota: notaSana(c.nota, E),
+    })) };
+  }
+  const nota = notaSana(ev.nota, E);
+  return { ...base, tipo: 'simple', nota, pendiente: nota === null };
+}
+
+function decimaSana(d, usados) {
+  if (!esObjeto(d)) return null;
+  const valor = numSano(d.valor, 0, 2);
+  if (valor === null) return ajuste(null);
+  return {
+    id: idUnico(d.id, usados), motivo: textoSano(d.motivo, 60, 'Décimas') || 'Décimas', valor,
+    estado: d.estado === 'potencial' ? 'potencial' : 'obtenida', evalId: idSano(d.evalId),
+  };
+}
+
+function asignaturaSana(a, E, periodos, usados) {
+  if (!esObjeto(a)) return null;
+  const usadosEv = new Set(), usadosCh = new Set(), usadosD = new Set();
+  const asig = {
+    id: idUnico(a.id, usados),
+    nombre: textoSano(a.nombre, 80, 'Asignatura') || 'Asignatura',
+    meta: notaSana(a.meta, E),
+    periodoId: periodos.some(x => x.id === a.periodoId) ? a.periodoId : periodos[0].id,
+    evaluaciones: listaAcotada(a.evaluaciones, 200).map(ev => normalizarEvaluacion(ev, E, usadosEv)).filter(Boolean),
+    checklist: listaAcotada(a.checklist, 200).filter(esObjeto).map(c => ({
+      id: idUnico(c.id, usadosCh), texto: textoSano(c.texto, 200, 'Tarea') || 'Tarea', hecho: c.hecho === true,
+    })),
+    decimas: listaAcotada(a.decimas, 100).map(d => decimaSana(d, usadosD)).filter(Boolean),
+  };
+  if (a.cerrada === true) asig.cerrada = true;
+  // v8: créditos opcionales (perfil universitario); un valor inválido se descarta
+  const c = numSano(a.creditos, 0.5, 60);
+  if (c !== null) asig.creditos = c;
+  return asig;
+}
+
+/** Malla universitaria: { universidad, carrera, fuente, version, actualizada, semestres: [{ nombre, ramos: [{ nombre, creditos? }] }] } */
+function mallaSana(m) {
+  if (!esObjeto(m)) return m == null ? null : ajuste(null);
+  return {
+    universidad: textoSano(m.universidad, 120), carrera: textoSano(m.carrera, 120),
+    fuente: textoSano(m.fuente, 200), version: textoSano(m.version, 20), actualizada: textoSano(m.actualizada, 20),
+    semestres: listaAcotada(m.semestres, 20).filter(esObjeto).map((s, i) => ({
+      nombre: textoSano(s.nombre, 40, `Semestre ${i + 1}`) || `Semestre ${i + 1}`,
+      ramos: listaAcotada(s.ramos, 30).filter(esObjeto).map(r => {
+        const ramo = { nombre: textoSano(r.nombre, 80) };
+        const cr = numSano(r.creditos, 0, 60);
+        if (cr !== null) ramo.creditos = cr;
+        return ramo;
+      }),
+    })),
+  };
+}
+
+const NIVELES_VALIDOS = new Set([...REF.NIVELES_ESCOLARES.map(([k]) => k), ...(REF.NIVELES_TP || []).map(x => (Array.isArray(x) ? x[0] : x))]);
+
+/** Completa y valida un perfil (datos de versiones anteriores, respaldos o edición manual). */
 function normalizarPerfil(p) {
-  const base = nuevoPerfil(p.nombre || 'Perfil');
-  const r = { ...base, ...p };
-  r.uni = { ...base.uni, ...(p.uni || {}) };
-  r.escala = { ...ESCALA_DEFECTO, ...(p.escala || {}) };
-  r.metaGeneral = { global: null, periodos: {}, ...(p.metaGeneral || {}) };
-  r.nem = { grupo: null, manual: {}, ...(p.nem || {}) };
-  r.admision = { puntajes: {}, seleccion: null, ...(p.admision || {}) };
-  if (!['pct', 'dec'].includes(r.unidadPeso)) r.unidadPeso = 'pct';
-  if (!Array.isArray(r.periodos) || !r.periodos.length) r.periodos = base.periodos;
+  if (!esObjeto(p)) p = ajuste({});
+  const base = nuevoPerfil(textoSano(p.nombre, 60, 'Perfil') || 'Perfil');
+  const r = base;
+  r.id = idSano(p.id) || ajuste(base.id);
+  r.modalidad = MODALIDADES[p.modalidad] ? p.modalidad : (p.modalidad === undefined ? base.modalidad : ajuste(base.modalidad));
+  r.nivel = typeof p.nivel === 'string' && (NIVELES_VALIDOS.has(p.nivel) || /^[A-Za-z0-9]{1,4}$/.test(p.nivel)) ? p.nivel : base.nivel;
+  r.especialidad = textoSano(p.especialidad, 80);
+  r.carreraPreferida = textoSano(p.carreraPreferida, 120);
+  const u = esObjeto(p.uni) ? p.uni : {};
+  r.uni = {
+    universidad: textoSano(u.universidad, 120), carrera: textoSano(u.carrera, 120),
+    anio: Number.isInteger(u.anio) && u.anio >= 1 && u.anio <= 7 ? u.anio : 1,
+    semestre: Number.isInteger(u.semestre) && u.semestre >= 1 && u.semestre <= 2 ? u.semestre : 1,
+    malla: mallaSana(u.malla),
+  };
+  r.escala = escalaSana(p.escala);
+  const E = r.escala;
+  r.regimen = REGIMENES[p.regimen] ? p.regimen : base.regimen;
+  r.unidadPeso = ['pct', 'dec'].includes(p.unidadPeso) ? p.unidadPeso : 'pct';
   // v8: el orden del arreglo de períodos ES el orden visible (se reordena arrastrando); nombres siempre texto
-  r.periodos = r.periodos.filter(x => x && x.id).map(x => ({ ...x, nombre: String(x.nombre ?? 'Período').slice(0, 40) || 'Período' }));
+  const usadosP = new Set();
+  r.periodos = listaAcotada(p.periodos, 12).filter(x => esObjeto(x) && idSano(x.id) && !usadosP.has(x.id) && usadosP.add(x.id))
+    .map(x => ({ id: x.id, nombre: textoSano(x.nombre, 40, 'Período') || 'Período' }));
   if (!r.periodos.length) r.periodos = base.periodos;
-  r.asignaturas = (r.asignaturas || []).map(a => {
-    const asig = {
-      checklist: [], ...a,
-      decimas: (a.decimas || []).map(d => ({ ...d, evalId: typeof d.evalId === 'string' && d.evalId ? d.evalId : null })),
-      evaluaciones: (a.evaluaciones || []).map(normalizarEvaluacion),
-      periodoId: r.periodos.some(x => x.id === a.periodoId) ? a.periodoId : r.periodos[0].id,
-    };
-    // v8: créditos opcionales (perfil universitario); un valor inválido se descarta
-    const c = Number(asig.creditos);
-    if (asig.creditos !== undefined && !(Number.isFinite(c) && c > 0 && c <= 60)) delete asig.creditos;
-    return asig;
-  });
-  if (r.periodoActivo !== 'todos' && !r.periodos.some(x => x.id === r.periodoActivo)) r.periodoActivo = r.periodos[0].id;
+  const usadosA = new Set();
+  r.asignaturas = listaAcotada(p.asignaturas, 300).map(a => asignaturaSana(a, E, r.periodos, usadosA)).filter(Boolean);
+  r.periodoActivo = p.periodoActivo === 'todos' || r.periodos.some(x => x.id === p.periodoActivo) ? p.periodoActivo : r.periodos[0].id;
+  r.seleccionada = r.asignaturas.some(a => a.id === p.seleccionada) ? p.seleccionada : null;
+  // Meta general: global y por período, siempre dentro de la escala
+  const mg = esObjeto(p.metaGeneral) ? p.metaGeneral : {};
+  r.metaGeneral = { global: notaSana(mg.global, E), periodos: {} };
+  for (const [k, v] of Object.entries(esObjeto(mg.periodos) ? mg.periodos : {})) {
+    const n = notaSana(v, E);
+    if (n !== null && r.periodos.some(x => x.id === k)) r.metaGeneral.periodos[k] = n;
+  }
+  // NEM: grupo A/B/C y promedios manuales 1,0–7,0 por año de media (1M–4M)
+  const nem = esObjeto(p.nem) ? p.nem : {};
+  r.nem = { grupo: REF.GRUPOS_NEM[nem.grupo] ? nem.grupo : null, manual: {} };
+  for (const [k, v] of Object.entries(esObjeto(nem.manual) ? nem.manual : {})) {
+    const n = numSano(v, 1, 7);
+    if (n !== null && REF.AÑOS_MEDIA.includes(k)) r.nem.manual[k] = n;
+  }
+  // Admisión: puntajes 0–1000 por componente y carrera seleccionada del catálogo
+  const adm = esObjeto(p.admision) ? p.admision : {};
+  r.admision = { puntajes: {}, seleccion: idSano(adm.seleccion) };
+  for (const [k, v] of Object.entries(esObjeto(adm.puntajes) ? adm.puntajes : {})) {
+    const n = numSano(v, 0, 1000);
+    if (n !== null && /^[a-z0-9_]{1,20}$/i.test(k)) r.admision.puntajes[k] = n;
+  }
   r.calendario = migrarCalendario(p.calendario);
   // v13: ensayos PAES del perfil [{ id, nombre, fecha, prueba, correctas|null, puntajeManual|null }]
-  r.ensayos = (Array.isArray(p.ensayos) ? p.ensayos : []).filter(e => e && e.id && typeof e.prueba === 'string').map(e => ({
-    id: e.id, nombre: String(e.nombre ?? 'Ensayo').slice(0, 60) || 'Ensayo',
-    fecha: /^\d{4}-\d{2}-\d{2}$/.test(e.fecha) ? e.fecha : '',
-    prueba: e.prueba,
-    correctas: Number.isInteger(e.correctas) && e.correctas >= 0 ? e.correctas : null,
-    puntajeManual: Number.isInteger(e.puntajeManual) && e.puntajeManual >= 100 && e.puntajeManual <= 1000 ? e.puntajeManual : null,
-    escala: REF.ESCALAS_PAES.some(x => x.id === e.escala) ? e.escala : REF.ESCALAS_PAES[0].id,
-  }));
+  const pruebas = new Set((REF.PRUEBAS_ENSAYO || []).map(x => x.id ?? x.clave ?? x[0]).filter(Boolean));
+  const usadosE = new Set();
+  r.ensayos = listaAcotada(p.ensayos, 300).filter(e => esObjeto(e) && typeof e.prueba === 'string' && (!pruebas.size || pruebas.has(e.prueba)))
+    .map(e => ({
+      id: idUnico(e.id, usadosE), nombre: textoSano(e.nombre, 60, 'Ensayo') || 'Ensayo',
+      fecha: fechaSana(e.fecha),
+      prueba: e.prueba,
+      correctas: Number.isInteger(e.correctas) && e.correctas >= 0 && e.correctas <= 200 ? e.correctas : null,
+      puntajeManual: Number.isInteger(e.puntajeManual) && e.puntajeManual >= 100 && e.puntajeManual <= 1000 ? e.puntajeManual : null,
+      escala: REF.ESCALAS_PAES.some(x => x.id === e.escala) ? e.escala : REF.ESCALAS_PAES[0].id,
+    }));
+  if (Number.isFinite(p.eliminadoEn)) r.eliminadoEn = p.eliminadoEn;
   return r;
 }
 
@@ -117,15 +287,25 @@ function normalizarPerfil(p) {
  */
 const TIPOS_FECHA = { feriado: 'Feriado', hito: 'Hito académico', evaluacion: 'Evaluación', otro: 'Otro' };
 function migrarCalendario(c) {
-  const cal = { eventos: [], versionRef: 0, quitadosRef: [], ...(c && typeof c === 'object' ? c : {}) };
-  cal.quitadosRef = Array.isArray(cal.quitadosRef) ? cal.quitadosRef : [];
-  cal.eventos = (Array.isArray(cal.eventos) ? cal.eventos : []).filter(e => e && e.id).map(e => ({
-    ...e,
-    nombre: String(e.nombre ?? 'Fecha').slice(0, 80) || 'Fecha',
-    fecha: /^\d{4}-\d{2}-\d{2}$/.test(e.fecha) ? e.fecha : '',
-    tipo: TIPOS_FECHA[e.tipo] ? e.tipo : 'otro',
-  }));
-  if ((Number(cal.versionRef) || 0) < REF.VERSION_FECHAS) {
+  const fuente = esObjeto(c) ? c : {};
+  const cal = {
+    versionRef: Number.isInteger(fuente.versionRef) ? fuente.versionRef : 0,
+    quitadosRef: listaAcotada(fuente.quitadosRef, 1000).filter(idSano),
+    eventos: [],
+  };
+  const usados = new Set();
+  cal.eventos = listaAcotada(fuente.eventos, 1000).filter(e => esObjeto(e) && idSano(e.id)).map(e => {
+    const ev = {
+      id: idUnico(e.id, usados),
+      nombre: textoSano(e.nombre, 80, 'Fecha') || 'Fecha',
+      fecha: fechaSana(e.fecha),
+      tipo: TIPOS_FECHA[e.tipo] ? e.tipo : 'otro',
+    };
+    if (e.origen === 'ref') ev.origen = 'ref';
+    if (e.nota) ev.nota = textoSano(e.nota, 200);
+    return ev;
+  });
+  if (cal.versionRef < REF.VERSION_FECHAS) {
     const ids = new Set(cal.eventos.map(e => e.id));
     for (const e of [...REF.HITOS_REFERENCIA, ...REF.FERIADOS_CHILE]) {
       if (!ids.has(e.id) && !cal.quitadosRef.includes(e.id)) cal.eventos.push({ ...e, origen: 'ref' });
@@ -143,26 +323,69 @@ function storeVacio() {
   };
 }
 
-/** Normaliza un store completo (v2, v3, v4 o respaldo importado). */
+/** Carrera del catálogo de cortes: textos acotados, ponderaciones 0–100 y puntajes 0–1000. */
+function carreraCatalogoSana(c, usados) {
+  if (!esObjeto(c)) return null;
+  const pond = {};
+  for (const [k, v] of Object.entries(esObjeto(c.ponderaciones) ? c.ponderaciones : {})) {
+    const n = numSano(v, 0, 100);
+    if (n !== null && /^[a-z0-9_]{1,20}$/i.test(k)) pond[k] = n;
+  }
+  return {
+    id: idUnico(c.id, usados),
+    universidad: textoSano(c.universidad, 160), carrera: textoSano(c.carrera, 160, 'Carrera') || 'Carrera',
+    ponderaciones: pond,
+    corte: numSano(c.corte, 0, 1000), ponderadoMinimo: numSano(c.ponderadoMinimo, 0, 1000),
+    anio: textoSano(c.anio, 10), notas: textoSano(c.notas, 400), fuente: textoSano(c.fuente, 300),
+  };
+}
+
+/** Tabla NEM importada: pares [promedio 1,0–7,0, puntaje 100–1000], ordenados y sin repetir promedio. */
+function tablaNEMSana(t) {
+  if (!esObjeto(t)) return null;
+  const vistos = new Set();
+  const tabla = listaAcotada(t.tabla, 2000).filter(par => Array.isArray(par) && par.length >= 2)
+    .map(([prom, pts]) => [numSano(prom, 1, 7), numSano(pts, 0, 1000)])
+    .filter(([prom, pts]) => prom !== null && pts !== null && !vistos.has(prom) && vistos.add(prom))
+    .sort((a, b) => a[0] - b[0]);
+  return tabla.length >= 2 ? { tabla, fecha: fechaSana(t.fecha) || new Date().toISOString().slice(0, 10) } : ajuste(null);
+}
+
+/** Normaliza un store completo (v2, v3, v4 o respaldo importado) validando cada campo. */
 function normalizarStore(s) {
+  if (!esObjeto(s)) s = ajuste({});
   const base = storeVacio();
-  const r = { ...base, ...s, version: 4 };
-  r.perfiles = (s.perfiles || []).map(normalizarPerfil);
+  const r = { version: 4 };
+  const usados = new Set();
+  r.perfiles = listaAcotada(s.perfiles, 100).filter(esObjeto).map(normalizarPerfil)
+    .map(p => { if (usados.has(p.id)) { ajuste(); p.id = uid(); } usados.add(p.id); return p; });
   if (!r.perfiles.length) r.perfiles = base.perfiles;
-  if (!r.perfiles.some(p => p.id === r.perfilActivo)) r.perfilActivo = r.perfiles[0].id;
+  r.perfilActivo = r.perfiles.some(p => p.id === s.perfilActivo) ? s.perfilActivo : r.perfiles[0].id;
   // Papelera de perfiles (v4): cada perfil conserva la fecha en que se envió (`eliminadoEn`, timestamp)
-  r.papelera = (Array.isArray(s.papelera) ? s.papelera : [])
-    .map(p => ({ ...normalizarPerfil(p), eliminadoEn: Number(p.eliminadoEn) || Date.now() }));
-  r.tablasNEM = s.tablasNEM || {};
-  r.catalogoCortes = Array.isArray(s.catalogoCortes) ? s.catalogoCortes : clonar(REF.CATALOGO_CORTES);
-  r.config = { ...base.config, ...(s.config || {}) };
-  if (!DIAS_PAPELERA.includes(Number(r.config.diasPapelera))) r.config.diasPapelera = 30;
-  r.config.diasPapelera = Number(r.config.diasPapelera);
-  if (!Array.isArray(r.config.novedadesLeidas)) r.config.novedadesLeidas = [];
-  if ((Number(r.config.versionCatalogo) || 1) < REF.VERSION_CATALOGO) r.catalogoCortes = migrarCatalogo(r.catalogoCortes, Number(r.config.versionCatalogo) || 1);
+  r.papelera = listaAcotada(s.papelera, 100).filter(esObjeto)
+    .map(p => ({ ...normalizarPerfil(p), eliminadoEn: numSano(p.eliminadoEn, 0, 8.64e15) ?? Date.now() }));
+  r.tablasNEM = {};
+  for (const [g, t] of Object.entries(esObjeto(s.tablasNEM) ? s.tablasNEM : {})) {
+    const tabla = REF.GRUPOS_NEM[g] ? tablaNEMSana(t) : ajuste(null);
+    if (tabla) r.tablasNEM[g] = tabla;
+  }
+  const cfg = esObjeto(s.config) ? s.config : {};
+  r.config = {
+    ocrTesseract: cfg.ocrTesseract === true,
+    diasPapelera: DIAS_PAPELERA.includes(cfg.diasPapelera) ? cfg.diasPapelera : base.config.diasPapelera,
+    novedadesLeidas: listaAcotada(cfg.novedadesLeidas, 500).filter(x => typeof x === 'string' && x.length <= 80),
+  };
+  const usadosC = new Set();
+  r.catalogoCortes = Array.isArray(s.catalogoCortes)
+    ? listaAcotada(s.catalogoCortes, 3000).map(c => carreraCatalogoSana(c, usadosC)).filter(Boolean)
+    : clonar(REF.CATALOGO_CORTES);
+  const versionCatalogo = Number.isInteger(cfg.versionCatalogo) ? cfg.versionCatalogo : 1;
+  if (versionCatalogo < REF.VERSION_CATALOGO) r.catalogoCortes = migrarCatalogo(r.catalogoCortes, versionCatalogo);
   r.config.versionCatalogo = REF.VERSION_CATALOGO;
-  if (r.vista === 'nem') r.vista = 'admision';
+  r.vista = s.vista === 'nem' ? 'admision' : s.vista;
   if (!['notas', 'admision', 'paes', 'universidades', 'estudio'].includes(r.vista)) r.vista = 'notas';
+  r.subvista = s.subvista === 'cortes' ? 'cortes' : 'nem';
+  if (['ensayos', 'escalas', 'info'].includes(s.paesSub)) r.paesSub = s.paesSub;
   return r;
 }
 
@@ -194,38 +417,69 @@ function migrarCatalogo(catalogo, desde) {
 /** Migración v1 → "Perfil Principal" con un único Semestre 1. */
 function perfilDesdeV1(v1) {
   const p = nuevoPerfil('Perfil Principal');
-  p.escala = { ...ESCALA_DEFECTO, ...(v1.escala || {}) };
-  p.asignaturas = v1.asignaturas.map(a => ({ checklist: [], ...a, periodoId: p.periodos[0].id }));
+  p.escala = escalaSana(esObjeto(v1.escala) ? { ...ESCALA_DEFECTO, ...v1.escala } : ESCALA_DEFECTO);
+  p.asignaturas = lista(v1.asignaturas).filter(esObjeto).map(a => ({ checklist: [], ...a, periodoId: p.periodos[0].id }));
   p.seleccionada = v1.seleccionada ?? null;
   return normalizarPerfil(p);
 }
 
 /** Lee v4; si no existe, migra desde v3, v2 o v1 (las claves antiguas se conservan como respaldo). */
+const CLAVE_CORRUPTO = 'rutaAcademica.v4.ilegible';
+let almacenamientoBloqueado = false;
+/** Lee una clave sin lanzar errores (almacenamiento bloqueado o en modo privado → null). */
+function leerClave(clave) {
+  try { return localStorage.getItem(clave); }
+  catch { almacenamientoBloqueado = true; return null; }
+}
+/** JSON.parse que no lanza: si el texto está dañado, lo aparta en otra clave para no perderlo. */
+function parsearGuardado(raw, clave) {
+  try { return JSON.parse(raw); }
+  catch (e) {
+    console.warn(`Datos ilegibles en ${clave}`, e);
+    try { localStorage.setItem(CLAVE_CORRUPTO, raw); } catch { /* sin espacio: queda solo el aviso */ }
+    avisoMigracion = [avisoMigracion, 'Tus datos guardados estaban dañados y no se pudieron leer. Apartamos una copia (rutaAcademica.v4.ilegible) para no perderla; si tienes un respaldo, impórtalo desde “Más”'].filter(Boolean).join('. ');
+    return undefined;
+  }
+}
 function leerStoreGuardado() {
+  saneo.ajustes = 0;
+  const conAviso = s => {
+    if (saneo.ajustes) avisoMigracion = [avisoMigracion, `Se corrigieron ${saneo.ajustes} dato(s) guardados que estaban fuera de rango o mal formados`].filter(Boolean).join('. ');
+    return s;
+  };
   try {
-    const raw4 = localStorage.getItem(CLAVE_V4);
-    if (raw4) return normalizarStore(JSON.parse(raw4));
-    for (const [clave, version] of [[CLAVE_V3, 3], [CLAVE_V2, 2]]) {
-      const raw = localStorage.getItem(clave);
-      if (!raw) continue;
-      const s = JSON.parse(raw);
-      if (s && Array.isArray(s.perfiles)) { avisoMigracion = `Tus perfiles se actualizaron de la versión ${version} a la 4`; return normalizarStore(s); }
+    const raw4 = leerClave(CLAVE_V4);
+    if (raw4) {
+      const s = parsearGuardado(raw4, CLAVE_V4);
+      if (esObjeto(s)) return conAviso(normalizarStore(s));
+      // Ilegible: se parte de cero (la copia dañada ya quedó apartada en otra clave)
+      return storeVacio();
     }
-    const raw1 = localStorage.getItem(CLAVE_V1);
+    for (const [clave, version] of [[CLAVE_V3, 3], [CLAVE_V2, 2]]) {
+      const raw = leerClave(clave);
+      if (!raw) continue;
+      const s = parsearGuardado(raw, clave);
+      if (s && Array.isArray(s.perfiles)) { avisoMigracion = `Tus perfiles se actualizaron de la versión ${version} a la 4`; return conAviso(normalizarStore(s)); }
+    }
+    const raw1 = leerClave(CLAVE_V1);
     if (raw1) {
-      const v1 = JSON.parse(raw1);
+      const v1 = parsearGuardado(raw1, CLAVE_V1);
       if (v1 && Array.isArray(v1.asignaturas)) {
         const s = storeVacio();
         s.perfiles = [perfilDesdeV1(v1)];
         s.perfilActivo = s.perfiles[0].id;
         avisoMigracion = 'Tus datos anteriores se migraron al “Perfil Principal”';
-        return s;
+        return conAviso(s);
       }
     }
   } catch (e) {
-    console.warn('No se pudieron leer los datos guardados', e);
+    // Un error inesperado al migrar no debe dejar la app en blanco: se informa y se parte con un perfil vacío
+    console.error('No se pudieron leer los datos guardados', e);
+    avisoMigracion = [avisoMigracion, 'No pudimos leer tus datos guardados; si tienes un respaldo, impórtalo desde “Más”'].filter(Boolean).join('. ');
+    return storeVacio();
   }
-  primerInicio = true;   // v14: no había nada guardado → se ofrece crear el perfil en un paso
+  if (almacenamientoBloqueado) avisoMigracion = 'Este navegador bloquea el almacenamiento local: tus cambios no se guardarán al cerrar la página. Exporta un respaldo desde “Más”';
+  else primerInicio = true;   // v14: no había nada guardado → se ofrece crear el perfil en un paso
   return storeVacio();
 }
 
@@ -260,14 +514,27 @@ let importacion = null;             // estado del asistente "Importar desde foto
 let fraseDesplazamiento = 0;        // "Otra frase": desplazamiento sobre la frase del día (no se guarda)
 let gestion = { tab: 'perfiles', sel: new Set() }; // diálogo de gestión de perfiles / papelera
 
-const perfil = () => store.perfiles.find(p => p.id === store.perfilActivo);
+const perfil = () => store.perfiles.find(p => p.id === store.perfilActivo) || store.perfiles[0];
 const escala = () => perfil().escala;
 const esEscolar = (p = perfil()) => p.modalidad === 'ch' || p.modalidad === 'tp';
 const esConsolidado = () => perfil().periodoActivo === 'todos';
 
+let ultimoAvisoGuardado = 0;
+/** Guarda en localStorage. Si falla (sin espacio, modo privado, bloqueado) avisa —sin repetir el aviso en cada tecla— y ofrece exportar. */
 function guardar() {
-  try { localStorage.setItem(CLAVE_V4, JSON.stringify(store)); }
-  catch (e) { toast('No se pudo guardar en este navegador'); }
+  try { localStorage.setItem(CLAVE_V4, JSON.stringify(store)); return true; }
+  catch (e) {
+    console.error('No se pudo guardar', e);
+    if (Date.now() - ultimoAvisoGuardado > 15000) {
+      ultimoAvisoGuardado = Date.now();
+      const sinEspacio = e?.name === 'QuotaExceededError' || e?.code === 22 || e?.code === 1014;
+      toast(sinEspacio
+        ? 'No queda espacio para guardar en este navegador. Exporta un respaldo y libera espacio (por ejemplo, vacía la papelera de perfiles).'
+        : 'Este navegador no permite guardar: tus cambios se perderán al cerrar. Exporta un respaldo.',
+      { etiqueta: 'Exportar respaldo', fn: () => exportarRespaldo(false) }, { duracion: 12000 });
+    }
+    return false;
+  }
 }
 
 /** Guarda y redibuja. Se difiere un instante para conservar el foco del siguiente campo. */
@@ -278,11 +545,20 @@ function actualizar() {
 
 /**
  * Ejecuta una modificación destructiva ofreciendo "Deshacer" en el toast durante unos segundos.
- * Se guarda una copia completa del estado previo (simple y a prueba de errores).
+ * Se guarda UNA copia serializada del estado previo; deja de existir cuando el toast se cierra
+ * (accionToast = null), así que no se acumulan copias en memoria. Si la modificación falla a medias,
+ * se restaura esa copia para no dejar datos inconsistentes.
  */
 function conDeshacer(mensaje, mutar) {
   const antes = JSON.stringify(store);
-  mutar();
+  try { mutar(); }
+  catch (e) {
+    console.error(e);
+    store = normalizarStore(JSON.parse(antes));
+    toast('No se pudo completar la acción; tus datos quedaron como estaban.');
+    setTimeout(render, 0);
+    return;
+  }
   actualizar();
   toast(mensaje, {
     etiqueta: 'Deshacer',
@@ -296,6 +572,16 @@ function conDeshacer(mensaje, mutar) {
 
 const $ = (sel, raiz = document) => raiz.querySelector(sel);
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+/** (v25) URL para href/src: solo http(s) o rutas relativas; javascript:, data:, vbscript: y otros esquemas → "#". Ya escapada para atributo. */
+function urlSegura(u) {
+  const t = String(u ?? '').trim();
+  if (!t) return '#';
+  try {
+    const url = new URL(t, location.href);
+    if (url.protocol !== 'https:' && url.protocol !== 'http:') return '#';
+  } catch { return '#'; }
+  return esc(t);
+}
 const opts = (lista, sel) => lista.map(([v, t]) => `<option value="${esc(v)}" ${String(v) === String(sel) ? 'selected' : ''}>${esc(t)}</option>`).join('');
 
 const dec = () => (escala().max - escala().min > 20 ? 1 : 2);
@@ -534,7 +820,9 @@ const slug = s => Importador.normalizar(s).replace(/\s+/g, '-').slice(0, 40) || 
  * 3. Render principal
  * ========================================================= */
 
-function render() {
+/** Dibujo completo. v25: un error fuera de las secciones (p. ej. al calcular) tampoco deja la app congelada. */
+function render() { seguro(renderInterno); }
+function renderInterno() {
   preservarFoco(() => {
     const p = perfil();
     renderTopbar();
@@ -553,10 +841,10 @@ function render() {
       if (b.dataset.vista === store.vista) b.setAttribute('aria-current', 'page'); else b.removeAttribute('aria-current');
     });
     $('#tab-nem-badge').hidden = !esEscolar();
-    if (enAdmision) { $('#vista-admision').dataset.sub = store.subvista === 'cortes' ? 'cortes' : 'nem'; renderAdmision(); seguro(aplicarPlegables); return; }
-    if (enPaes) { renderPaes(); return; }
-    if (enUni) { renderUniversidades(); return; }
-    if (enEstudio) { renderEstudio(); return; }
+    if (enAdmision) { $('#vista-admision').dataset.sub = store.subvista === 'cortes' ? 'cortes' : 'nem'; seguro(renderAdmision, '#vista-admision'); seguro(aplicarPlegables); return; }
+    if (enPaes) { seguro(renderPaes, '#vista-paes'); return; }
+    if (enUni) { seguro(renderUniversidades, '#vista-universidades'); return; }
+    if (enEstudio) { seguro(renderEstudio, '#vista-estudio'); return; }
 
     const todos = p.asignaturas.map(a => Calc.analizarAsignatura(a, p.escala));
     const visibles = esConsolidado() ? todos : todos.filter(a => a.asig.periodoId === p.periodoActivo);
@@ -567,15 +855,15 @@ function render() {
     // v15: sin materias, la vista se concentra en "Empieza tu ruta" (se ocultan resúmenes vacíos)
     $('#vista-notas').classList.toggle('modo-inicio', !visibles.length);
     // v14: cada bloque se dibuja por separado; si uno falla, los demás (lista, notas) igual se actualizan
-    seguro(renderPeriodos);
-    seguro(renderFrase);
-    seguro(() => renderResumen(visibles, todos, prioridades));
-    seguro(() => renderPromocion(todos));
+    seguro(renderPeriodos, '#periodos');
+    seguro(renderFrase, '#frase-dia');
+    seguro(() => renderResumen(visibles, todos, prioridades), '#resumen');
+    seguro(() => renderPromocion(todos), '#promocion');
     seguro(() => renderMetaGeneral(visibles));
-    seguro(() => renderWidgetDia(visibles, prioridades));
-    seguro(() => renderConsolidadoAsignaturas(todos));
-    seguro(() => renderLista(visibles, idPrioritaria));
-    seguro(() => renderDetalle(visibles, idPrioritaria));
+    seguro(() => renderWidgetDia(visibles, prioridades), '#widget-dia');
+    seguro(() => renderConsolidadoAsignaturas(todos), '#consolidado-asig');
+    seguro(() => renderLista(visibles, idPrioritaria), '#lista');
+    seguro(() => renderDetalle(visibles, idPrioritaria), '#detalle');
     seguro(marcarAnimaciones);
     seguro(aplicarPlegables);
   });
@@ -618,9 +906,23 @@ const tieneMeta = asig => typeof asig.meta === 'number' && Number.isFinite(asig.
 const textoMeta = asig => (tieneMeta(asig) ? String(asig.meta).replace('.', ',') : 'sin meta');
 
 /** Ejecuta una parte del dibujo sin que un error en ella bloquee el resto de la pantalla. */
-function seguro(fn) {
-  try { fn(); } catch (e) { console.error('Error al dibujar una sección:', e); }
+/**
+ * Dibuja una sección aislando sus errores (v14). v25: si falla, la sección muestra un aviso en vez de quedar
+ * en blanco o desactualizada, y se avisa una vez con un toast (los datos no se tocan).
+ */
+let avisoErrorDibujo = 0;
+function seguro(fn, contenedor) {
+  try { fn(); return true; }
+  catch (e) {
+    console.error('Error al dibujar una sección:', e);
+    const el = contenedor ? document.querySelector(contenedor) : null;
+    if (el) { el.hidden = false; el.innerHTML = '<p class="aviso-seccion" role="alert">No se pudo mostrar esta sección. Tus datos están a salvo: recarga la página y, si sigue, exporta un respaldo desde “Más”.</p>'; }
+    if (Date.now() - avisoErrorDibujo > 10000) { avisoErrorDibujo = Date.now(); toast('Una sección no se pudo mostrar. Tus datos están a salvo.'); }
+    return false;
+  }
 }
+// Errores no capturados (promesas incluidas): quedan en la consola y no congelan la interfaz
+addEventListener('unhandledrejection', e => { console.error('Promesa rechazada sin manejar:', e.reason); });
 
 /* ---------- Tema claro / oscuro (v10) ---------- */
 
@@ -961,7 +1263,7 @@ function htmlEscalas() {
       <h3 class="escala-titulo">${esc(nombre)} <small>· ${tabla.length - 1} correctas como máximo · 100 a 1.000 puntos</small></h3>
       <ul class="escala-grid" aria-label="Respuestas correctas y puntaje PAES">${filas}</ul>
       ${prueba === 'm2' && esc0.notaM2 ? `<p class="nota-aviso">${esc(esc0.notaM2)}</p>` : ''}
-      <p class="nota-aviso">Correctas → puntaje PAES. Tabla oficial: ${esc(esc0.etiqueta.replace(/^DEMRE · /, ''))}. <a href="${esc0.url}" target="_blank" rel="noopener noreferrer">demre.cl ↗</a></p>
+      <p class="nota-aviso">Correctas → puntaje PAES. Tabla oficial: ${esc(esc0.etiqueta.replace(/^DEMRE · /, ''))}. <a href="${urlSegura(esc0.url)}" target="_blank" rel="noopener noreferrer">demre.cl ↗</a></p>
       <button class="btn sm" data-action="paes-sub" data-sub="ensayos">Registrar un ensayo con esta tabla</button>
     </div>`;
 }
@@ -1110,7 +1412,7 @@ function htmlTarjetasUniversidades() {
       <h3>${esc(u.nombre.replace(/\s*\([^)]*\)\s*$/, ''))}</h3>
       <p class="muted">${u.carreras ? `${u.carreras} carrera(s) con corte 2026 en el catálogo` : 'Sin carreras en el catálogo de la app'}</p>
       <div class="uni-acciones">
-        <a class="btn primario sm" href="${esc(u.url)}" target="_blank" rel="noopener noreferrer">Sitio oficial ↗</a>
+        <a class="btn primario sm" href="${urlSegura(u.url)}" target="_blank" rel="noopener noreferrer">Sitio oficial ↗</a>
         ${u.carreras ? `<button class="btn ghost sm" data-action="uni-ver-carreras" data-sigla="${esc(u.sigla || u.nombre)}">Ver carreras y cortes</button>` : ''}
       </div>
       <small class="uni-url">${esc(u.url.replace(/^https?:\/\//, ''))}</small>
@@ -1242,7 +1544,7 @@ function htmlEnsayos() {
           <button type="submit" class="btn primario">${ensayoEdicion ? 'Guardar cambios' : 'Agregar ensayo'}</button>
         </div>
       </form>
-      <p class="nota-aviso">Las erradas no descuentan. Conversión con la tabla oficial de DEMRE: es una referencia, cada ensayo puede variar. <a href="${esc0.url}" target="_blank" rel="noopener noreferrer">Fuente ↗</a></p>
+      <p class="nota-aviso">Las erradas no descuentan. Conversión con la tabla oficial de DEMRE: es una referencia, cada ensayo puede variar. <a href="${urlSegura(esc0.url)}" target="_blank" rel="noopener noreferrer">Fuente ↗</a></p>
     </div>
 
     <h2 class="paes-subtitulo">Tu evolución por prueba</h2>
@@ -1384,10 +1686,10 @@ function htmlPaesInfo() {
       <p><strong>DEMRE actualiza temarios y fechas cada año:</strong> confírmalos antes de inscribirte.</p>
       <p class="nota-aviso">Fuente: ${esc(P.fuente)}</p>
       <div class="fila-botones inicio">
-        <a class="btn sm" href="${P.urlTemarios}" target="_blank" rel="noopener noreferrer">Temarios oficiales (DEMRE) ↗</a>
-        <a class="btn ghost sm" href="${P.urlFechas}" target="_blank" rel="noopener noreferrer">Fechas y horarios ↗</a>
-        <a class="btn ghost sm" href="${P.urlM2}" target="_blank" rel="noopener noreferrer">Carreras que exigen M2 ↗</a>
-        <a class="btn ghost sm" href="${P.urlFaq}" target="_blank" rel="noopener noreferrer">Preguntas frecuentes ↗</a>
+        <a class="btn sm" href="${urlSegura(P.urlTemarios)}" target="_blank" rel="noopener noreferrer">Temarios oficiales (DEMRE) ↗</a>
+        <a class="btn ghost sm" href="${urlSegura(P.urlFechas)}" target="_blank" rel="noopener noreferrer">Fechas y horarios ↗</a>
+        <a class="btn ghost sm" href="${urlSegura(P.urlM2)}" target="_blank" rel="noopener noreferrer">Carreras que exigen M2 ↗</a>
+        <a class="btn ghost sm" href="${urlSegura(P.urlFaq)}" target="_blank" rel="noopener noreferrer">Preguntas frecuentes ↗</a>
       </div>
     </div>`;
 }
@@ -2862,7 +3164,7 @@ function htmlNEM() {
   }
   const importadas = Object.keys(REF.GRUPOS_NEM).map(k => store.tablasNEM[k]
     ? `<li>${esc(REF.GRUPOS_NEM[k])}: cargada el ${esc(store.tablasNEM[k].fecha)} (${store.tablasNEM[k].tabla.length} filas) <button class="btn ghost sm peligro" data-action="quitar-nem" data-grupo="${k}">Quitar</button></li>`
-    : `<li>${esc(REF.GRUPOS_NEM[k])}: tabla oficial incluida · <a href="${REF.URL_NEM[k]}" target="_blank" rel="noopener">ver en demre.cl</a></li>`).join('');
+    : `<li>${esc(REF.GRUPOS_NEM[k])}: tabla oficial incluida · <a href="${urlSegura(REF.URL_NEM[k])}" target="_blank" rel="noopener noreferrer">ver en demre.cl</a></li>`).join('');
 
   return `
     ${esEscolar() ? '' : '<div class="aviso-uni">La calculadora NEM está pensada para escolares. Puedes usarla igual ingresando tus promedios a mano.</div>'}
@@ -3010,7 +3312,7 @@ function htmlCortes() {
         </div>
         <input type="search" data-cat-buscar data-key="cat-buscar" value="${esc(busquedaCatalogo)}" placeholder="Buscar universidad o carrera…" aria-label="Buscar en el catálogo">
         <div id="cat-tabla" class="tabla-scroll">${htmlTablaCatalogo()}</div>
-        <p class="nota-aviso">Cortes 2026: ${esc(REF.FUENTE_CORTES_2026)} Ponderaciones de ejemplo: confírmalas en <a href="https://acceso.mineduc.cl" target="_blank" rel="noopener">acceso.mineduc.cl</a>.</p>
+        <p class="nota-aviso">Cortes 2026: ${esc(REF.FUENTE_CORTES_2026)} Ponderaciones de ejemplo: confírmalas en <a href="https://acceso.mineduc.cl" target="_blank" rel="noopener noreferrer">acceso.mineduc.cl</a>.</p>
       </div>
     </div>`;
 }
@@ -3304,13 +3606,14 @@ function importarCatalogo(texto) {
   const j = JSON.parse(texto);
   const lista = Array.isArray(j) ? j : j.catalogo;
   if (!Array.isArray(lista)) throw new Error('se esperaba un arreglo de carreras');
-  const validas = lista.filter(c => c && c.universidad && c.carrera).map(c => ({
-    id: c.id && !store.catalogoCortes.some(x => x.id === c.id) ? c.id : uid(),
-    universidad: String(c.universidad), carrera: String(c.carrera),
-    ponderaciones: Object.fromEntries(Object.entries(c.ponderaciones || {}).filter(([k, w]) => Calc.COMPONENTES_ADMISION.includes(k) && Number(w) > 0).map(([k, w]) => [k, Number(w)])),
-    corte: typeof c.corte === 'number' ? c.corte : null, anio: c.anio ?? '', ponderadoMinimo: typeof c.ponderadoMinimo === 'number' ? c.ponderadoMinimo : null,
-    fuente: c.fuente || 'Importado por el estudiante', notas: c.notas || '',
-  }));
+  // v25: cada carrera pasa por la misma validación estricta que el catálogo guardado (ids seguros, rangos, largos)
+  const usados = new Set(store.catalogoCortes.map(x => x.id));
+  const validas = lista.slice(0, 3000).filter(c => esObjeto(c) && typeof c.universidad === 'string' && typeof c.carrera === 'string' && c.universidad.trim() && c.carrera.trim())
+    .map(c => carreraCatalogoSana({
+      ...c,
+      ponderaciones: Object.fromEntries(Object.entries(esObjeto(c.ponderaciones) ? c.ponderaciones : {}).filter(([k, w]) => Calc.COMPONENTES_ADMISION.includes(k) && typeof w === 'number' && w > 0)),
+      fuente: c.fuente || 'Importado por el estudiante',
+    }, usados)).filter(Boolean);
   if (!validas.length) throw new Error('no se encontraron carreras válidas (requieren universidad y carrera)');
   return validas;
 }
@@ -3955,7 +4258,7 @@ function htmlResumenInforme() {
         <label>Período de destino
           <select data-imp-periodo>${opts(p.periodos.map(x => [x.id, x.nombre]), imp.informe.periodoDestino)}</select>
         </label>
-        <p class="nota-aviso">${det ? `Detectado en el informe: ${det.numero}° ${det.tipo}.` : 'No se detectó el período en el texto.'}
+        <p class="nota-aviso">${det ? `Detectado en el informe: ${esc(det.numero)}° ${esc(det.tipo)}.` : 'No se detectó el período en el texto.'}
           ${imp.informe.columnasResumen ? `Se separaron ${imp.informe.columnasResumen} columna(s) de promedios por fila: no se importan como notas.` : ''}</p>
       </div>
       <div class="tabla-scroll"><table class="tabla tabla-compacta">
@@ -4001,25 +4304,51 @@ function cargarArchivoImportar(archivo) {
 
 function cargarImagen(archivo) {
   if (!archivo || !archivo.type.startsWith('image/')) { toast('El archivo no es una imagen ni un PDF'); return; }
+  if (archivo.size > 25 * 1024 * 1024) { toast('La imagen es demasiado grande (máx. 25 MB)'); return; }
+  const vigente = nuevaLectura(importacion);
   const lector = new FileReader();
-  lector.onload = () => { importacion.imagenURL = lector.result; importacion.archivoPDF = null; importacion.estado = ''; renderImportar(); };
+  lector.onload = () => { if (!vigente()) return; importacion.imagenURL = lector.result; importacion.archivoPDF = null; importacion.estado = ''; renderImportar(); };
   lector.onerror = () => toast('No se pudo leer la imagen');
   lector.readAsDataURL(archivo);
 }
 
-function cargarPdfjs() {
-  return new Promise((resolver, rechazar) => {
-    if (window.pdfjsLib) return resolver(window.pdfjsLib);
+/**
+ * (v25) Carga un script externo con integridad (SRI) y CORS anónimo. La promesa se reutiliza si ya se
+ * está cargando (dos clics seguidos no insertan dos <script>), vence a los 30 s para no dejar la app
+ * esperando sin conexión, y si falla se retira el <script> para poder reintentar después.
+ */
+const cargasExternas = new Map();
+function cargarScriptSeguro(url, integridad, listo) {
+  if (listo()) return Promise.resolve();
+  if (cargasExternas.has(url)) return cargasExternas.get(url);
+  const promesa = new Promise((resolver, rechazar) => {
     const s = document.createElement('script');
-    s.src = URL_PDFJS;
-    s.onload = () => {
-      if (!window.pdfjsLib) return rechazar(new Error('el lector de PDF no se inicializó'));
-      window.pdfjsLib.GlobalWorkerOptions.workerSrc = URL_PDFJS_WORKER;
-      resolver(window.pdfjsLib);
-    };
-    s.onerror = () => rechazar(new Error('no se pudo descargar el lector de PDF (¿sin conexión?)'));
+    s.src = url;
+    s.integrity = integridad;
+    s.crossOrigin = 'anonymous';
+    s.referrerPolicy = 'no-referrer';
+    const fallar = msg => { clearTimeout(reloj); s.remove(); cargasExternas.delete(url); rechazar(new Error(msg)); };
+    const reloj = setTimeout(() => fallar('la descarga tardó demasiado (¿conexión lenta o sin internet?)'), 30000);
+    s.onload = () => { clearTimeout(reloj); listo() ? resolver() : fallar('la biblioteca no se inicializó'); };
+    s.onerror = () => fallar('no se pudo descargar o no pasó la verificación de integridad (¿sin conexión?)');
     document.head.appendChild(s);
   });
+  cargasExternas.set(url, promesa);
+  return promesa;
+}
+
+/** pdf.js + su worker. El worker se descarga con fetch verificando su hash y se usa como blob (mismo origen). */
+let workerPdfURL = null;
+async function cargarPdfjs() {
+  await cargarScriptSeguro(URL_PDFJS, SRI_PDFJS, () => !!window.pdfjsLib);
+  if (!workerPdfURL) {
+    const r = await fetch(URL_PDFJS_WORKER, { integrity: SRI_PDFJS_WORKER, mode: 'cors', credentials: 'omit', referrerPolicy: 'no-referrer' })
+      .catch(() => { throw new Error('no se pudo descargar el lector de PDF (¿sin conexión?)'); });
+    if (!r.ok) throw new Error('no se pudo descargar el lector de PDF');
+    workerPdfURL = URL.createObjectURL(await r.blob());
+  }
+  window.pdfjsLib.GlobalWorkerOptions.workerSrc = workerPdfURL;
+  return window.pdfjsLib;
 }
 
 const PDF_MAX_PAGINAS = 5;   // un informe de notas ocupa 1–2 páginas; se limita para no colgar el navegador
@@ -4030,8 +4359,14 @@ const PDF_MAX_PAGINAS = 5;   // un informe de notas ocupa 1–2 páginas; se lim
  *    y reconstruye las filas (Importador.textoDesdePDF). Si parece un informe completo, activa ese modo.
  * 2) PDF escaneado (sin texto): dibuja las páginas como imagen para pasarlas por el OCR.
  */
+/** (v25) Cada lectura (PDF, imagen, OCR) recibe un número; si empieza otra o se cierra el importador, la anterior no pisa el estado. */
+let lecturaImport = 0;
+const nuevaLectura = imp => { const n = ++lecturaImport; return () => n === lecturaImport && importacion === imp; };
+
 async function leerPDF(archivo) {
   const imp = importacion;
+  const vigente = nuevaLectura(imp);
+  if (archivo.size > 30 * 1024 * 1024) { imp.estado = 'El PDF es demasiado grande (máx. 30 MB).'; renderImportar(); return; }
   imp.texto = $('#foto-texto')?.value ?? imp.texto;   // no perder lo que ya estaba escrito si el PDF falla
   imp.imagenURL = null;
   imp.archivoPDF = archivo.name || 'documento.pdf';
@@ -4046,11 +4381,14 @@ async function leerPDF(archivo) {
       const tc = await (await doc.getPage(n)).getTextContent();
       paginas.push(tc.items.map(i => ({ str: i.str, x: i.transform[4], y: i.transform[5], w: i.width, h: i.height || Math.abs(i.transform[3]) })));
     }
+    if (!vigente()) { doc.destroy?.(); return; }   // el usuario eligió otro archivo o cerró el importador
     const texto = Importador.textoDesdePDF(paginas).trim();
     const extra = doc.numPages > total ? ` Solo se leyeron las primeras ${total} de ${doc.numPages} páginas.` : '';
     if (texto.replace(/\s/g, '').length < 30) {
       // Sin capa de texto: se convierte a imagen y se usa el OCR habitual
-      imp.imagenURL = await paginasComoImagen(doc, total);
+      const imagen = await paginasComoImagen(doc, total);
+      if (!vigente()) { doc.destroy?.(); return; }
+      imp.imagenURL = imagen;
       imp.archivoPDF = null;
       imp.estado = `El PDF parece escaneado (sin texto seleccionable). Lo convertí a imagen: presiona “Leer texto de la imagen”.${extra}`;
     } else {
@@ -4065,6 +4403,7 @@ async function leerPDF(archivo) {
     }
     doc.destroy?.();
   } catch (e) {
+    if (!vigente()) return;
     imp.archivoPDF = null;
     imp.estado = /password/i.test(e?.name || e?.message || '')
       ? 'El PDF está protegido con contraseña. Ábrelo en tu visor, copia el texto y pégalo abajo.'
@@ -4097,14 +4436,7 @@ async function paginasComoImagen(doc, total) {
 }
 
 function cargarTesseract() {
-  return new Promise((resolver, rechazar) => {
-    if (window.Tesseract) return resolver();
-    const s = document.createElement('script');
-    s.src = URL_TESSERACT;
-    s.onload = () => resolver();
-    s.onerror = () => rechazar(new Error('no se pudo descargar Tesseract.js (¿sin conexión?)'));
-    document.head.appendChild(s);
-  });
+  return cargarScriptSeguro(URL_TESSERACT, SRI_TESSERACT, () => !!window.Tesseract);
 }
 
 /**
@@ -4127,15 +4459,13 @@ async function prepararImagenOCR(url) {
     const datos = ctx.getImageData(0, 0, w, h);
     const px = datos.data;
     const gris = new Uint8ClampedArray(w * h);
-    let suma = 0;
     for (let i = 0, j = 0; i < px.length; i += 4, j++) {
       const y = 0.299 * px[i] + 0.587 * px[i + 1] + 0.114 * px[i + 2];
-      gris[j] = y; suma += y;
+      gris[j] = y;
     }
     // Solo escala + grises: invertir o forzar contraste destruye el texto en capturas con fondos mixtos
     // (barras de color, tarjetas oscuras), y Tesseract ya binariza e invierte por su cuenta.
     for (let i = 0, j = 0; i < px.length; i += 4, j++) px[i] = px[i + 1] = px[i + 2] = gris[j];
-    void suma;
     ctx.putImageData(datos, 0, 0);
     return canvas;
   } catch {
@@ -4157,14 +4487,15 @@ function textoDesdeCajas(bloques) {
   return filas.sort((a, b) => a.cy - b.cy).map(f => f.items.sort((a, b) => a.x - b.x).map(i => i.t).join('  ')).join('\n');
 }
 
-let trabajadorOCR = null;   // worker de Tesseract reutilizable (se crea la primera vez)
+let trabajadorOCR = null;   // promesa del worker de Tesseract reutilizable (se crea una sola vez aunque haya dos lecturas a la vez)
 async function leerConTesseract(fuente) {
   await cargarTesseract();
   if (window.Tesseract.createWorker) {
-    trabajadorOCR ??= await window.Tesseract.createWorker('spa');
+    trabajadorOCR ??= window.Tesseract.createWorker('spa').catch(e => { trabajadorOCR = null; throw e; });
+    const worker = await trabajadorOCR;
     // Mantener los espacios entre columnas ayuda a separar nombre, nota y ponderación
-    await trabajadorOCR.setParameters({ preserve_interword_spaces: '1' });
-    const r = await trabajadorOCR.recognize(fuente);
+    await worker.setParameters({ preserve_interword_spaces: '1' });
+    const r = await worker.recognize(fuente);
     return r.data.text || '';
   }
   const r = await window.Tesseract.recognize(fuente, 'spa');
@@ -4175,6 +4506,7 @@ async function leerConTesseract(fuente) {
 async function ejecutarOCR() {
   const imp = importacion;
   if (!imp.imagenURL) return;
+  const vigente = nuevaLectura(imp);
   imp.texto = $('#foto-texto')?.value ?? imp.texto;
   imp.estado = 'Leyendo la imagen…';
   renderImportar();
@@ -4199,6 +4531,7 @@ async function ejecutarOCR() {
         if (puntaje(alternativo) > puntaje(texto)) texto = alternativo;
       }
     }
+    if (!vigente()) return;   // llegó tarde: ya hay otra imagen o se cerró el importador
     // Limpieza mínima: espacios duros, líneas vacías repetidas y espacios al final
     texto = texto.replace(/ /g, ' ').replace(/[ \t]+$/gm, '').replace(/\n{3,}/g, '\n\n');
     if (!texto.trim()) {
@@ -4208,6 +4541,7 @@ async function ejecutarOCR() {
       imp.estado = 'Texto leído. Revísalo y corrígelo antes de analizar: el OCR puede confundir comas, 1/7 o 5/6.';
     }
   } catch (e) {
+    if (!vigente()) return;
     imp.estado = `No se pudo leer la imagen (${e.message}). Puedes escribir o pegar el texto manualmente.`;
   }
   renderImportar();
@@ -4648,30 +4982,36 @@ function exportarRespaldo(soloPerfil) {
 function importarRespaldo(texto) {
   let datos;
   try { datos = JSON.parse(texto); } catch { toast('El archivo no es un JSON válido'); return; }
-  if (datos?.tipo === 'ruta-academica-perfil' && datos.perfil) {
+  if (!esObjeto(datos)) { toast('No se reconoció el formato del respaldo'); return; }
+  // v25: todo pasa por la validación estricta; si algo se corrigió o descartó, se avisa con el número de ajustes
+  saneo.ajustes = 0;
+  const conAviso = msg => (saneo.ajustes ? `${msg}. Se corrigieron o descartaron ${saneo.ajustes} dato(s) inválidos del archivo` : msg);
+  if (datos.tipo === 'ruta-academica-perfil' && esObjeto(datos.perfil)) {
     const p = normalizarPerfil({ ...datos.perfil, id: uid() });
-    if (store.perfiles.some(x => x.nombre === p.nombre)) p.nombre += ' (importado)';
-    conDeshacer(`Perfil “${p.nombre}” importado`, () => { store.perfiles.push(p); store.perfilActivo = p.id; });
+    if (store.perfiles.some(x => x.nombre === p.nombre)) p.nombre = `${p.nombre.slice(0, 48)} (importado)`;
+    conDeshacer(conAviso(`Perfil “${p.nombre}” importado`), () => { store.perfiles.push(p); store.perfilActivo = p.id; });
     return;
   }
-  if (Array.isArray(datos?.perfiles)) {
+  if (Array.isArray(datos.perfiles)) {
     const n = datos.perfiles.length;
+    if (!n) { toast('El respaldo no trae perfiles'); return; }
     if (confirm(`El respaldo trae ${n} perfil(es). ¿Reemplazar TODOS tus datos actuales por el respaldo? (podrás deshacerlo)`)) {
-      conDeshacer('Respaldo restaurado', () => { store = normalizarStore(datos); });
+      const nuevo = normalizarStore(datos);
+      conDeshacer(conAviso('Respaldo restaurado'), () => { store = nuevo; });
     } else if (confirm(`¿Agregar los ${n} perfil(es) del respaldo junto a los actuales?`)) {
-      conDeshacer(`${n} perfil(es) agregados`, () => {
-        datos.perfiles.forEach(x => store.perfiles.push(normalizarPerfil({ ...x, id: uid() })));
-      });
+      const nuevos = datos.perfiles.slice(0, 100).filter(esObjeto).map(x => normalizarPerfil({ ...x, id: uid() }));
+      conDeshacer(conAviso(`${nuevos.length} perfil(es) agregados`), () => { store.perfiles.push(...nuevos); });
     }
     return;
   }
-  if (Array.isArray(datos?.asignaturas)) { // respaldo con formato v1
+  if (Array.isArray(datos.asignaturas)) { // respaldo con formato v1
     const p = perfilDesdeV1(datos);
-    conDeshacer('Datos v1 importados como perfil', () => { store.perfiles.push(p); store.perfilActivo = p.id; });
+    conDeshacer(conAviso('Datos v1 importados como perfil'), () => { store.perfiles.push(p); store.perfilActivo = p.id; });
     return;
   }
   toast('No se reconoció el formato del respaldo');
 }
+
 
 /* =========================================================
  * 8. Validación de entradas
@@ -5047,11 +5387,12 @@ document.addEventListener('click', e => {
       try {
         const r = parsearMalla($('#malla-texto').value);
         if (!r || !r.semestres.length) { toast('Pega una malla en JSON o texto'); return; }
-        p.uni.malla = {
+        // v25: la malla pegada (JSON o texto) se valida igual que la guardada: textos acotados y estructura fija
+        p.uni.malla = mallaSana({
           universidad: r.universidad ?? $('#malla-uni').value.trim(), carrera: r.carrera ?? $('#malla-carrera').value.trim(),
           semestres: r.semestres, fuente: r.fuente ? `${r.fuente} · importada` : 'Importada por el estudiante',
           version: r.version ?? hoy(), actualizada: hoy(),
-        };
+        });
         guardar(); renderMalla(); render();
         toast(`Malla importada: ${r.semestres.length} semestre(s)`);
       } catch (err) {
@@ -5205,7 +5546,10 @@ document.addEventListener('change', e => {
     const archivo = t.files?.[0];
     t.value = '';
     if (!archivo) return;
-    archivo.text().then(texto => {
+    // v25: un respaldo real pesa kilobytes; un archivo enorme congelaría la página al leerlo
+    if (archivo.size > 10 * 1024 * 1024) { toast('El archivo es demasiado grande (máx. 10 MB). ¿Elegiste el archivo correcto?'); return; }
+    archivo.text().catch(() => { toast('No se pudo leer el archivo'); return null; }).then(texto => {
+      if (texto === null) return;
       if (t.id === 'archivo-respaldo') { importarRespaldo(texto); return; }
       try {
         const nuevas = importarCatalogo(texto);
@@ -5764,7 +6108,7 @@ Cancelar: crear otra asignatura igualmente.`)) {
     asig.decimas ??= [];
     const estado = datos.get('estado') === 'potencial' ? 'potencial' : 'obtenida';
     const idDecima = uid();
-    const evalId = String(datos.get('evalId') || '') || null;
+    const evalId = idSano(String(datos.get('evalId') || ''));
     asig.decimas.push({ id: idDecima, motivo: String(datos.get('motivo') || '').trim().slice(0, 60) || 'Décimas', valor: v, estado, evalId });
     animar.decima = idDecima;
     actualizar();
