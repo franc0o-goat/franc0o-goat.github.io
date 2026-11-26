@@ -38,7 +38,7 @@
       <label class="sb-perfil-etq" for="sel-perfil">Perfil activo</label>
       <select id="sel-perfil" class="sel-perfil" title="Cambiar de perfil"></select>
       <div class="sb-perfil-acciones">
-        <button class="btn ghost sm btn-editar-perfil" data-action="abrir-perfil" title="Datos del perfil: nivel, escala y carrera">✎ Editar perfil</button>
+        <button class="btn ghost sm btn-editar-perfil" data-action="abrir-perfil" title="Editar perfil: nivel, escala y carrera" aria-label="Editar perfil">✎ <span class="txt-editar">Editar perfil</span></button>
         <button class="btn sm btn-nuevo-mini" data-action="nuevo-perfil" title="Crear un perfil nuevo (otro año u otra persona)">＋ Nuevo</button>
       </div>
     </div>
@@ -92,9 +92,10 @@
       <div class="flotante-ancla">
         <button class="btn ghost sm btn-apoyar" data-action="apoyar" aria-haspopup="dialog" aria-expanded="false" title="Apoyar Ruta Académica">♥ <span class="txt-apoyar">Apoyar</span></button>
         <div id="panel-apoyo" class="panel-flotante panel-apoyo" role="dialog" aria-label="Apoyar el proyecto" hidden>
-          <strong>¡Gracias por querer apoyar!</strong>
-          <p>El enlace de donaciones estará disponible próximamente. Por ahora, la mejor ayuda es usar la app y compartirla.</p>
-          <a class="btn sm" href="#" aria-disabled="true" data-action="apoyar-proximamente">Donar (próximamente)</a>
+          <div class="apoyo-cab"><span class="apoyo-corazon" aria-hidden="true">♥</span><strong>Apoya Ruta Académica</strong></div>
+          <p>Es gratis y sin anuncios. Tu aporte ayuda a mantenerla y a sumar mejoras para más estudiantes.</p>
+          <a class="btn primario sm btn-donar" href="#" aria-disabled="true" data-action="apoyar-proximamente">Donar (muy pronto)</a>
+          <p class="nota-aviso">Mientras tanto, compartirla también ayuda mucho.</p>
         </div>
       </div>
       <details class="menu">
@@ -103,7 +104,7 @@
           <button role="menuitem" data-action="nuevo-perfil">+ Nuevo perfil</button>
           <button role="menuitem" data-action="abrir-gestion">Gestionar perfiles…</button>
           <button role="menuitem" data-action="abrir-papelera">Papelera de perfiles <span id="n-papelera" class="pill" hidden>0</span></button>
-          <button role="menuitem" data-action="abrir-foto">Importar notas desde foto</button>
+          <button role="menuitem" data-action="abrir-foto">Importar notas (foto o PDF)</button>
           <button role="menuitem" data-action="abrir-fechas">Feriados y fechas clave…</button>
           <hr>
           <button role="menuitem" data-action="abrir-guia">Guía de inicio (paso a paso)</button>
@@ -132,10 +133,10 @@
         <aside id="frase-dia" class="frase-dia" aria-label="Frase del día"></aside>
       </div>
       <section id="resumen" class="panel resumen" aria-label="Resumen"></section>
-      <section id="promocion" class="panel promocion" aria-label="Promoción escolar" aria-live="polite" hidden></section>
+      <section id="promocion" class="panel promocion" data-plegable="promocion" aria-label="Promoción escolar" aria-live="polite" hidden></section>
       <details id="meta-general" class="panel meta-general"></details>
       <!-- v9: promedio de cada asignatura entre períodos (solo en Consolidado) -->
-      <section id="consolidado-asig" class="panel consolidado-asig" aria-label="Promedio por asignatura entre períodos" hidden></section>
+      <section id="consolidado-asig" class="panel consolidado-asig" data-plegable="consolidado" aria-label="Promedio por asignatura entre períodos" hidden></section>
 
       <div class="layout">
         <aside class="panel lateral">
@@ -191,6 +192,9 @@
 
   <!-- Menú contextual de períodos (clic derecho, toque largo o botón "⋯ Período") -->
   <div id="menu-contextual" class="menu-contextual" hidden></div>
+
+  <!-- v17: nombre de la sección al navegar desde la barra inferior del celular -->
+  <div id="etiqueta-seccion" class="etiqueta-seccion" aria-live="polite" hidden></div>
 
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
 

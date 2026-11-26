@@ -535,7 +535,7 @@ function render() {
       b.setAttribute('aria-selected', b.dataset.vista === store.vista);
     });
     $('#tab-nem-badge').hidden = !esEscolar();
-    if (enAdmision) { $('#vista-admision').dataset.sub = store.subvista === 'cortes' ? 'cortes' : 'nem'; renderAdmision(); return; }
+    if (enAdmision) { $('#vista-admision').dataset.sub = store.subvista === 'cortes' ? 'cortes' : 'nem'; renderAdmision(); seguro(aplicarPlegables); return; }
     if (enPaes) { renderPaes(); return; }
     if (enUni) { renderUniversidades(); return; }
 
@@ -558,7 +558,40 @@ function render() {
     seguro(() => renderLista(visibles, idPrioritaria));
     seguro(() => renderDetalle(visibles, idPrioritaria));
     seguro(marcarAnimaciones);
+    seguro(aplicarPlegables);
   });
+}
+
+/* ---------- Celular (v17): bloques secundarios plegables ---------- */
+
+const esMovil = () => matchMedia('(max-width: 860px)').matches;
+// Abiertos por defecto: lo principal (evaluaciones, camino). Plegados: lo que se consulta de vez en cuando.
+const plegados = new Set(['decimas', 'checklist', 'guia', 'camino', 'promocion', 'consolidado', 'catalogo']);
+
+/** Marca cada bloque plegable según lo que la persona abrió o cerró (solo tiene efecto visual en el celular). */
+function aplicarPlegables() {
+  document.querySelectorAll('[data-plegable]').forEach(el => {
+    const cerrado = plegados.has(el.dataset.plegable);
+    el.classList.toggle('plegado', cerrado);
+    const cab = el.querySelector(':scope > .seccion-cab, :scope > .promocion-cab');
+    if (cab) {
+      cab.setAttribute('role', 'button');
+      cab.setAttribute('tabindex', esMovil() ? '0' : '-1');
+      cab.setAttribute('aria-expanded', String(!cerrado || !esMovil()));
+    }
+  });
+}
+
+/** Etiqueta flotante breve con el nombre de la sección (en el celular la barra inferior muestra solo íconos). */
+let temporizadorEtiqueta;
+function mostrarEtiquetaSeccion(texto) {
+  const el = $('#etiqueta-seccion');
+  if (!el || !texto) return;
+  el.textContent = texto;
+  el.hidden = false;
+  el.classList.remove('visible'); void el.offsetWidth; el.classList.add('visible');
+  clearTimeout(temporizadorEtiqueta);
+  temporizadorEtiqueta = setTimeout(() => { el.classList.remove('visible'); setTimeout(() => { el.hidden = true; }, 200); }, 1300);
 }
 
 /** (v14) Meta de una asignatura para mostrar: "6,0" o "sin meta". */
@@ -866,7 +899,8 @@ function crearPerfilBienvenida(conDetalles) {
   primerInicio = false;
   guardar();
   render();
-  if (conDetalles) { abrirPerfil(false); return; }
+  // Igual que "Crear mi perfil y empezar": al guardar o cerrar el Perfil se abre la guía de inicio
+  if (conDetalles) { guiaRetorno = { modo: 'inicio', paso: 0 }; abrirPerfil(false); return; }
   toast(`Perfil “${p.nombre}” creado. Agrega tus materias para empezar.`);
   setTimeout(() => abrirGuia('inicio'), 300);
 }
@@ -1329,7 +1363,7 @@ function renderPeriodos() {
         <button class="btn ghost sm" data-action="menu-periodo" data-id="${p.periodoActivo}" aria-haspopup="menu" title="Renombrar o mover este período (también con clic derecho sobre él)">⋯ Período</button>
         <button class="btn ghost sm peligro" data-action="eliminar-periodo" title="Elimina el período y sus asignaturas (podrás deshacerlo unos segundos)">Eliminar período</button>`}
       ${accionContexto}
-      <button class="btn sm primario" data-action="abrir-foto" title="Leer notas desde una foto o texto pegado. Siempre podrás revisar antes de guardar">Importar desde foto</button>
+      <button class="btn sm primario" data-action="abrir-foto" title="Leer notas desde una foto, un PDF o texto pegado. Siempre revisas antes de guardar">Importar notas</button>
       <button class="btn ghost sm btn-ayuda" data-action="abrir-ayuda" title="Ayuda: qué hace cada función" aria-label="Ayuda: qué hace cada función">(?)</button>
     </div>`;
   const sel = $('#form-asignatura [name=periodo]');
@@ -1731,7 +1765,7 @@ function htmlEmpiezaTuRuta(p, visibles) {
             <div class="paso-acciones">
               ${principal}
               <button class="btn" data-action="enfocar-nueva-materia">Escribir una materia</button>
-              <button class="btn" data-action="abrir-foto">Importar desde foto o PDF</button>
+              <button class="btn" data-action="abrir-foto">Importar notas (foto o PDF)</button>
             </div>
           </div>
         </li>
@@ -1787,12 +1821,12 @@ function renderDetalle(visibles, idPrioritaria) {
     <div class="detalle-cols">
       <div class="col">
         <div class="panel">${htmlEvaluaciones(a)}</div>
-        <div class="panel">${htmlDecimas(a)}</div>
-        <div class="panel">${htmlChecklist(asig)}</div>
+        <div class="panel" data-plegable="decimas">${htmlDecimas(a)}</div>
+        <div class="panel" data-plegable="checklist">${htmlChecklist(asig)}</div>
       </div>
       <div class="col">
-        <div class="panel">${htmlCamino(a)}</div>
-        <div class="panel guia">${htmlGuia(a)}</div>
+        <div class="panel" data-plegable="camino">${htmlCamino(a)}</div>
+        <div class="panel guia" data-plegable="guia">${htmlGuia(a)}</div>
       </div>
     </div>`;
   actualizarSimResultado(a);
@@ -2782,7 +2816,7 @@ function htmlCortes() {
         ${htmlComboCarrera(sel)}
         ${sel ? htmlResultadoPonderado(sel, ef) : '<p class="muted">Elige una carrera para calcular tu puntaje ponderado y compararlo con su corte.</p>'}
       </div>
-      <div class="panel">
+      <div class="panel" data-plegable="catalogo">
         <div class="seccion-cab">
           <h2>Catálogo de carreras y cortes</h2>
           <div class="fila-botones">
@@ -3599,7 +3633,7 @@ function renderImportar() {
   const cuerpo = $('#foto-cuerpo');
   if (!imp.grupos) {
     cuerpo.innerHTML = `
-      <h2>Importar notas desde foto</h2>
+      <h2>Importar notas</h2>
       <p class="muted">Sube una foto o PDF, o pega una imagen (Ctrl+V). Nada se guarda sin confirmar.</p>
       <div class="form-fila destino-previo">
         <label>¿A qué materia van estas notas?
@@ -4498,6 +4532,13 @@ const leerNumeroONulo = v => (v === '' || v === null || v === undefined ? null :
  * ========================================================= */
 
 document.addEventListener('click', e => {
+  const cabPleg = e.target.closest?.('[data-plegable] > .seccion-cab, [data-plegable] > .promocion-cab');
+  if (cabPleg && esMovil() && !e.target.closest('button, a, input, select, label, textarea')) {
+    const id = cabPleg.parentElement.dataset.plegable;
+    if (plegados.has(id)) plegados.delete(id); else plegados.add(id);
+    aplicarPlegables();
+    return;
+  }
   // Cerrar el menú "Más" al hacer clic fuera
   document.querySelectorAll('details.menu[open]').forEach(d => { if (!d.contains(e.target)) d.removeAttribute('open'); });
   if (!e.target.closest('.flotante-ancla')) {
@@ -4520,7 +4561,14 @@ document.addEventListener('click', e => {
       break;
     }
     /* --- Navegación --- */
-    case 'vista': store.vista = btn.dataset.vista; actualizar(); break;
+    case 'vista': {
+      store.vista = btn.dataset.vista;
+      actualizar();
+      window.scrollTo({ top: 0 });
+      const etiqueta = btn.querySelector('span:not(.pill)');
+      if (esMovil() && etiqueta && getComputedStyle(etiqueta).display === 'none') mostrarEtiquetaSeccion(etiqueta.textContent.trim());
+      break;
+    }
     case 'subvista': store.subvista = btn.dataset.sub; actualizar(); break;
     case 'periodo': p.periodoActivo = btn.dataset.id; actualizar(); break;
     case 'seleccionar':
@@ -5416,6 +5464,12 @@ document.addEventListener('keydown', e => {
     moverPeriodo(b.dataset.periodo, e.key === 'ArrowLeft' ? -1 : 1);
   }
 }, true);
+
+/* v17: Enter o espacio sobre el encabezado de un bloque plegable lo abre o cierra (celular) */
+document.addEventListener('keydown', e => {
+  const cabPleg = e.target.closest?.('[data-plegable] > .seccion-cab, [data-plegable] > .promocion-cab');
+  if (cabPleg && e.target === cabPleg && esMovil() && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); cabPleg.click(); }
+});
 
 /* Pegar o soltar imágenes en el asistente de foto */
 document.addEventListener('paste', e => {

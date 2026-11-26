@@ -1992,3 +1992,234 @@ input[inputmode="decimal"], input[inputmode="numeric"], input[type="number"] {
 }
 .cortes-grid .panel { min-width: 0; }
 .cortes-grid .tabla-scroll { max-width: 100%; }
+
+/* =========================================================
+ * v17 · Móvil: barra inferior, densidad compacta, bloques plegables, Donaciones
+ * Mismos elementos y nombres que en escritorio: solo cambia la disposición.
+ * ========================================================= */
+
+/* --- Donaciones (ambas versiones): panel atractivo y coherente --- */
+.panel-apoyo { gap: 10px; border-top: 3px solid var(--chispa); }
+.apoyo-cab { display: flex; align-items: center; gap: 10px; }
+.apoyo-cab strong { font-family: var(--fuente-titulos); font-size: 1.02rem; }
+.apoyo-corazon {
+  display: grid; place-items: center; width: 34px; height: 34px; border-radius: 50%; flex: none;
+  background: linear-gradient(135deg, var(--chispa), var(--primary)); color: #fff; font-size: 1rem;
+}
+.panel-apoyo .btn-donar { justify-self: stretch; opacity: 1; background: linear-gradient(120deg, var(--chispa), var(--primary)); border: 0; color: #fff; }
+.panel-apoyo .btn-donar[aria-disabled="true"] { cursor: default; filter: saturate(.85); }
+
+/* Latido suave del corazón de "Apoyar" (se detiene con movimiento reducido) */
+@keyframes latido { 0%, 80%, 100% { transform: scale(1); } 86% { transform: scale(1.22); } 92% { transform: scale(1); } 96% { transform: scale(1.12); } }
+.btn-apoyar .corazon-latido, .btn-apoyar { position: relative; }
+
+/* --- Bloques plegables: en escritorio todo se ve abierto (sin cambios) --- */
+@media (min-width: 861px) {
+  [data-plegable] > .seccion-cab, [data-plegable] > .promocion-cab { cursor: default; }
+}
+
+/* ===================== Celular (≤ 860 px) ===================== */
+@media (max-width: 860px) {
+  /* Densidad: tipografía y espacios fluidos, nada gigante */
+  html { font-size: 15px; }
+  body { font-size: 14px; line-height: 1.45; padding-bottom: calc(70px + env(safe-area-inset-bottom)); }
+  .contenedor { padding: 10px 10px 20px; }
+  .panel { padding: 12px; border-radius: 12px; }
+  .detalle .panel { padding-left: 14px; }
+  h2 { font-size: clamp(.98rem, 3.6vw, 1.08rem); }
+  h3 { font-size: .92rem; }
+  .btn { padding: 7px 11px; font-size: .84rem; }
+  .btn.sm { padding: 5px 9px; font-size: .78rem; }
+  .btn.btn-grande { padding: 9px 14px; font-size: .88rem; }
+  input:not([type=checkbox]):not([type=range]):not([type=file]), select, textarea { padding: 6px 9px; font-size: 16px; }   /* 16px evita el zoom automático del teclado */
+  .seccion-cab { margin-bottom: 8px; }
+  .layout, .detalle-cols, #vista-notas > * { gap: 10px; }
+  #vista-notas > * { margin-bottom: 10px; }
+
+  /* Cabecera superior: compacta y NO fija (la navegación pasa abajo) */
+  .sidebar {
+    position: relative; top: auto; display: grid; grid-template-columns: minmax(0, 1fr) auto;
+    gap: 6px 8px; padding: 8px 10px 8px; border-bottom: 1px solid var(--sidebar-borde);
+  }
+  .sidebar .marca { grid-column: 1; grid-row: 1; gap: 8px; }
+  .sidebar .logo { width: 30px; height: 30px; font-size: 15px; border-radius: 9px; }
+  .sidebar .marca h1 { font-size: .98rem; }
+  .sidebar .marca p { font-size: .72rem; max-width: 40vw; }
+  .sb-pie { grid-column: 2; grid-row: 1; flex-wrap: nowrap; gap: 2px; padding: 0; border: 0; margin: 0; }
+  .sb-perfil { grid-column: 1 / -1; grid-row: 2; display: flex; flex-wrap: nowrap; align-items: center; gap: 6px; padding: 6px 8px; }
+  .sb-perfil-etq { display: none; }
+  .sb-perfil .sel-perfil { flex: 1 1 auto; padding: 5px 8px !important; }
+  .sb-perfil-acciones { flex: none; padding: 0; gap: 4px; flex-wrap: nowrap; }
+  .sb-perfil .btn-editar-perfil { padding: 6px 8px; }
+  .sb-perfil .btn-editar-perfil .txt-editar { display: none; }              /* solo el ícono ✎ en el celular */
+  .sb-seccion, .sb-atajos { display: none; }
+
+  /* Barra de navegación inferior (zona del pulgar). Mismos botones e íconos que la barra lateral. */
+  .sidebar .tabs {
+    position: fixed; left: 0; right: 0; bottom: 0; z-index: 45; grid-row: auto; grid-column: auto;
+    display: flex; justify-content: space-around; align-items: stretch; gap: 2px;
+    margin: 0; max-width: none; overflow: visible;
+    padding: 6px 6px calc(6px + env(safe-area-inset-bottom));
+    background: color-mix(in srgb, var(--sidebar) 92%, transparent);
+    -webkit-backdrop-filter: blur(14px); backdrop-filter: blur(14px);
+    border-top: 1px solid var(--sidebar-borde);
+  }
+  .sidebar .tab {
+    flex: 1 1 0; min-width: 0; min-height: 50px; flex-direction: column; justify-content: center; align-items: center; gap: 2px;
+    padding: 6px 2px; border-radius: 12px; font-size: .64rem; line-height: 1.15; text-align: center;
+  }
+  .sidebar .tab > span:not(.pill) { display: none; }                         /* íconos solos si no hay espacio… */
+  .sidebar .tab .tab-icono { width: 23px; height: 23px; }
+  .sidebar .tab.activa { background: var(--primary-soft); color: var(--text); }
+  .sidebar .tab.activa .tab-icono { transform: translateY(-1px); }
+  .sidebar .tab.activa::after { left: 30%; right: 30%; top: 0; bottom: auto; width: auto; height: 3px; border-radius: 0 0 3px 3px; }
+  .sidebar .tab .pill { display: none; }
+
+  /* “Ir a mis notas”: botón flotante redondo sobre la barra (acción principal, al alcance del pulgar) */
+  .btn-ir-notas {
+    position: fixed; right: 14px; bottom: calc(74px + env(safe-area-inset-bottom)); z-index: 46;
+    width: 54px; height: 54px; padding: 0; border-radius: 50%; justify-content: center; margin: 0;
+    box-shadow: 0 10px 24px -8px var(--chispa), 0 0 0 3px color-mix(in srgb, var(--bg) 70%, transparent);
+  }
+  .btn-ir-notas span { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
+  .btn-ir-notas svg { width: 22px; height: 22px; }
+
+  /* Donaciones: botón con texto y degradado, con un latido suave cada pocos segundos */
+  .sb-pie .btn-apoyar {
+    color: #fff; background: linear-gradient(120deg, var(--chispa), var(--primary)); border: 0;
+    padding: 6px 11px; border-radius: 99px; font-weight: 800; box-shadow: 0 6px 16px -8px var(--chispa);
+    animation: latido 5s ease-in-out 2s infinite;
+  }
+  .sb-pie .btn-apoyar .txt-apoyar { display: inline; }
+  .sb-pie .btn-campana, .sb-pie .btn-tema { padding: 6px; }
+  .sb-pie .menu > summary.btn { padding: 6px 8px; }
+  .sidebar .panel-flotante, .sidebar .menu-lista { top: calc(100% + 4px); bottom: auto; right: 6px; left: auto; width: min(330px, calc(100vw - 12px)); }
+
+  /* Barra de períodos y acciones: una línea, sin bloques altos */
+  .barra-periodos { gap: 6px; }
+  .segmentado { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; max-width: 100%; }
+  .segmentado::-webkit-scrollbar { display: none; }
+  .seg { padding: 6px 11px; font-size: .82rem; flex: none; }
+  .periodos-acciones { gap: 4px; }
+
+  /* Franja de fechas + frase: compacta */
+  .fila-dia { gap: 8px; }
+  .widget-dia { padding: 8px 10px; }
+  .fila-dia .wd-lista { grid-template-columns: 1fr; gap: 4px; }
+  .fila-dia .wd-lista li:nth-child(n+3) { display: none; }                    /* 2 próximas fechas; el resto en “Editar” */
+  .fila-dia .frase-dia { padding: 8px 10px; gap: 8px; }
+  .fila-dia .frase-cuerpo blockquote { font-size: .88rem; }
+  .fila-dia .frase-icono { font-size: 1.4rem; }
+
+  /* Resumen: 2 × 2 compacto */
+  .resumen { grid-template-columns: 1fr 1fr; }
+  .stat { padding: 10px 12px; }
+  .stat-valor { font-size: clamp(1.4rem, 6.5vw, 1.75rem); }
+  .stat-sub, .stat-mensaje .progreso-texto { font-size: .78rem; }
+  .stat-titulo { font-size: .95rem; }
+
+  /* Detalle de asignatura: cabecera y métricas compactas */
+  .input-titulo { font-size: 1.15rem !important; }
+  .metricas { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px; }
+  .metrica { padding: 8px 10px; }
+  .metrica .valor { font-size: 1.25rem; }
+
+  /* Evaluaciones: cada una en 2 líneas (nombre / nota · % · pendiente · quitar) */
+  .tabla-evals tr { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) auto auto; gap: 4px 6px; padding: 8px 0; align-items: center; }
+  .tabla-evals td.col-pend { grid-column: auto; order: 0; }
+  .tabla-evals td.col-pend .check-label { font-size: 0; gap: 0; }            /* solo la casilla; el título explica */
+  .tabla-evals td.col-pend .check-label input { margin: 0; }
+  .tabla-evals td.col-pend .check-label::after { content: "Pend."; font-size: .72rem; margin-left: 4px; color: var(--muted); }
+  .tabla-evals input { padding: 6px 8px; }
+  .form-eval { gap: 6px; }
+
+  /* Bloques plegables: el encabezado funciona como botón */
+  [data-plegable] > .seccion-cab, [data-plegable] > .promocion-cab { cursor: pointer; position: relative; padding-right: 26px; -webkit-tap-highlight-color: transparent; }
+  [data-plegable] > .seccion-cab::after, [data-plegable] > .promocion-cab::after {
+    content: "▾"; position: absolute; right: 2px; top: 50%; transform: translateY(-50%); color: var(--muted); font-size: .9rem;
+    transition: transform var(--anim-rapida) var(--curva);
+  }
+  [data-plegable].plegado > .seccion-cab::after, [data-plegable].plegado > .promocion-cab::after { transform: translateY(-50%) rotate(-90deg); }
+  [data-plegable].plegado > :not(.seccion-cab):not(.promocion-cab) { display: none !important; }
+  [data-plegable].plegado > .seccion-cab, [data-plegable].plegado > .promocion-cab { margin-bottom: 0; }
+  [data-plegable].plegado { padding-top: 10px; padding-bottom: 10px; }
+
+  /* “Empieza tu ruta”: más compacto */
+  .inicio-ruta { padding: 16px 14px 14px; border-radius: 14px; }
+  .inicio-cab h2 { font-size: clamp(1.45rem, 7vw, 1.9rem); margin: 4px 0 6px; }
+  .inicio-lead { font-size: .9rem; }
+  .inicio-pasos { margin-top: 12px; }
+  .paso { padding: 10px 0; gap: 10px; grid-template-columns: 32px minmax(0, 1fr); }
+  .paso-num { width: 30px; height: 30px; font-size: .9rem; border-radius: 9px; }
+  .paso h3 { font-size: .98rem; margin: 3px 0 2px; }
+  .paso p { font-size: .84rem; }
+  .paso-acciones { margin-top: 8px; gap: 6px; }
+  .paso-acciones .btn { flex: 1 1 100%; padding: 9px 12px; }
+
+  /* Avisos y mensajes: abajo, sobre la barra inferior, sin tapar el centro de la pantalla */
+  .toast {
+    left: 10px; right: 10px; bottom: calc(72px + env(safe-area-inset-bottom)); max-width: none;
+    transform: translateY(16px); font-size: .84rem; line-height: 1.35; padding: 9px 10px 9px 14px; border-radius: 12px;
+    max-height: 30vh; overflow-y: auto;
+  }
+  .toast.visible { transform: translateY(0); }
+  .toast .toast-emoji { font-size: 1.1rem; }
+  .menu-contextual { max-height: 60vh; overflow-y: auto; }
+  dialog { max-height: calc(100vh - 24px); padding: 16px; }
+}
+
+/* Con un poco más de ancho (tablet chica / celular horizontal) la barra inferior muestra nombres */
+@media (min-width: 520px) and (max-width: 860px) {
+  .sidebar .tab > span:not(.pill) { display: block; font-size: .66rem; font-weight: 700; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+}
+
+/* Etiqueta flotante con el nombre de la sección (solo cuando la barra muestra íconos) */
+.etiqueta-seccion {
+  position: fixed; left: 50%; bottom: calc(74px + env(safe-area-inset-bottom)); z-index: 47;
+  transform: translate(-50%, 8px); opacity: 0; pointer-events: none;
+  padding: 7px 14px; border-radius: 99px; font-family: var(--fuente-ui); font-weight: 750; font-size: .84rem;
+  background: var(--text); color: var(--bg); box-shadow: 0 10px 24px -10px rgba(0, 0, 0, .6);
+  transition: opacity 180ms var(--curva), transform 180ms var(--curva);
+}
+.etiqueta-seccion.visible { opacity: 1; transform: translate(-50%, 0); }
+
+@media (prefers-reduced-motion: reduce) {
+  .sb-pie .btn-apoyar { animation: none !important; }
+  .etiqueta-seccion { transition: none; }
+}
+@media print {
+  .etiqueta-seccion { display: none !important; }
+}
+@media (max-width: 860px) {
+  /* Fila de evaluación: nota · pendiente · % · quitar, con anchos que no se pisan */
+  .tabla-evals tr { grid-template-columns: minmax(72px, 1fr) auto minmax(86px, 1fr) 30px; }
+  .tabla-evals td.col-nota, .tabla-evals td.col-peso { min-width: 0; }
+  .tabla-evals td.col-nota input { width: 100%; text-align: center; }
+  .tabla-evals td.col-pend { justify-self: start; }
+  .tabla-evals tr.fila-bloque td.col-nota { align-self: center; font-weight: 700; }
+  .tabla-evals .col-acc .icono { width: 28px; height: 28px; }
+}
+@media (max-width: 860px) {
+  /* Filtros de Universidades: la fila se desliza dentro de su panel en vez de ensancharlo */
+  .uni-filtros .segmentado { flex: 1 1 100%; min-width: 0; max-width: 100%; }
+  .uni-filtros input[type="search"] { flex: 1 1 100%; max-width: none; }
+  /* Tarjetas de universidades más compactas */
+  .uni-grid { grid-template-columns: minmax(0, 1fr); gap: 8px; }
+  .uni-tarjeta { padding: 10px 12px; gap: 4px; }
+  .uni-tarjeta .uni-url { display: none; }
+}
+/* Las vistas en grilla no deben crecer al ancho de su contenido más largo */
+.vista-universidades > *, .vista-paes > *, .vista-paes-cuerpo > *, #vista-admision > * { min-width: 0; }
+@media (max-width: 860px) {
+  [data-plegable] > .seccion-cab { flex-wrap: wrap; min-width: 0; }
+  .seccion-cab > *, .seccion-cab .fila-botones { min-width: 0; flex-wrap: wrap; }
+}
+@media (max-width: 860px) {
+  /* Puntajes de corte: lo que sobresalga 1–2 px (bordes y sombras) no ensancha la página */
+  #vista-admision .cortes-grid { overflow-x: clip; }
+}
+@media (max-width: 860px) {
+  /* Protección: ningún sobrante de 1–2 px provoca desplazamiento lateral en el celular
+     (clip no crea contenedor de scroll, así que no afecta la barra inferior ni los elementos fijos) */
+  html, body { overflow-x: clip; }
+}
