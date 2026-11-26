@@ -566,7 +566,7 @@ function render() {
 
 const esMovil = () => matchMedia('(max-width: 860px)').matches;
 // Abiertos por defecto: lo principal (evaluaciones, camino). Plegados: lo que se consulta de vez en cuando.
-const plegados = new Set(['decimas', 'checklist', 'guia', 'camino', 'promocion', 'consolidado', 'catalogo']);
+const plegados = new Set(matchMedia('(max-width: 860px)').matches ? ['decimas', 'checklist', 'guia', 'camino', 'promocion', 'consolidado', 'catalogo'] : []);
 
 /** Marca cada bloque plegable según lo que la persona abrió o cerró (solo tiene efecto visual en el celular). */
 function aplicarPlegables() {
@@ -576,8 +576,8 @@ function aplicarPlegables() {
     const cab = el.querySelector(':scope > .seccion-cab, :scope > .promocion-cab');
     if (cab) {
       cab.setAttribute('role', 'button');
-      cab.setAttribute('tabindex', esMovil() ? '0' : '-1');
-      cab.setAttribute('aria-expanded', String(!cerrado || !esMovil()));
+      cab.setAttribute('tabindex', '0');
+      cab.setAttribute('aria-expanded', String(!cerrado));
     }
   });
 }
@@ -686,6 +686,7 @@ function renderTopbar() {
   // v15: el selector solo cambia de perfil; crear uno nuevo tiene su propio botón ("＋ Nuevo")
   $('#sel-perfil').innerHTML = opts(store.perfiles.map(p => [p.id, p.nombre]), store.perfilActivo);
   $('#contexto-perfil').textContent = contextoPerfil();
+  $('#contexto-perfil').title = contextoPerfil();   // texto completo si se recorta (carreras largas en el celular)
   const n = store.papelera.length;
   $('#n-papelera').textContent = n;
   $('#n-papelera').hidden = !n;
@@ -1820,7 +1821,7 @@ function renderDetalle(visibles, idPrioritaria) {
     </div>
     <div class="detalle-cols">
       <div class="col">
-        <div class="panel">${htmlEvaluaciones(a)}</div>
+        <div class="panel panel-evaluaciones" data-plegable="evaluaciones">${htmlEvaluaciones(a)}</div>
         <div class="panel" data-plegable="decimas">${htmlDecimas(a)}</div>
         <div class="panel" data-plegable="checklist">${htmlChecklist(asig)}</div>
       </div>
@@ -4533,7 +4534,7 @@ const leerNumeroONulo = v => (v === '' || v === null || v === undefined ? null :
 
 document.addEventListener('click', e => {
   const cabPleg = e.target.closest?.('[data-plegable] > .seccion-cab, [data-plegable] > .promocion-cab');
-  if (cabPleg && esMovil() && !e.target.closest('button, a, input, select, label, textarea')) {
+  if (cabPleg && !e.target.closest('button, a, input, select, label, textarea')) {
     const id = cabPleg.parentElement.dataset.plegable;
     if (plegados.has(id)) plegados.delete(id); else plegados.add(id);
     aplicarPlegables();
@@ -5468,7 +5469,7 @@ document.addEventListener('keydown', e => {
 /* v17: Enter o espacio sobre el encabezado de un bloque plegable lo abre o cierra (celular) */
 document.addEventListener('keydown', e => {
   const cabPleg = e.target.closest?.('[data-plegable] > .seccion-cab, [data-plegable] > .promocion-cab');
-  if (cabPleg && e.target === cabPleg && esMovil() && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); cabPleg.click(); }
+  if (cabPleg && e.target === cabPleg && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); cabPleg.click(); }
 });
 
 /* Pegar o soltar imágenes en el asistente de foto */

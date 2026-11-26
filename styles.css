@@ -2223,3 +2223,54 @@ input[inputmode="decimal"], input[inputmode="numeric"], input[type="number"] {
      (clip no crea contenedor de scroll, así que no afecta la barra inferior ni los elementos fijos) */
   html, body { overflow-x: clip; }
 }
+
+/* =========================================================
+ * v18 · Bloques plegables en todas las pantallas, título de Evaluaciones,
+ *       pie de la barra lateral y cabecera móvil con carreras largas
+ * ========================================================= */
+
+/* --- Plegar / desplegar: igual en escritorio y celular --- */
+[data-plegable] > .seccion-cab, [data-plegable] > .promocion-cab { cursor: pointer; position: relative; padding-right: 28px; -webkit-tap-highlight-color: transparent; }
+[data-plegable] > .seccion-cab::after, [data-plegable] > .promocion-cab::after {
+  content: "▾"; position: absolute; right: 4px; top: 50%; transform: translateY(-50%); color: var(--muted); font-size: .95rem;
+  transition: transform var(--anim-rapida) var(--curva);
+}
+[data-plegable] > .seccion-cab:hover::after, [data-plegable] > .promocion-cab:hover::after { color: var(--text); }
+[data-plegable] > .seccion-cab:focus-visible { outline: 2px solid var(--primary); outline-offset: 4px; border-radius: 6px; }
+[data-plegable].plegado > .seccion-cab::after, [data-plegable].plegado > .promocion-cab::after { transform: translateY(-50%) rotate(-90deg); }
+[data-plegable].plegado > :not(.seccion-cab):not(.promocion-cab) { display: none !important; }
+[data-plegable].plegado > .seccion-cab, [data-plegable].plegado > .promocion-cab { margin-bottom: 0; }
+
+/* --- Evaluaciones: título destacado (es el bloque principal del registro de notas) --- */
+.panel-evaluaciones { border-top: 3px solid var(--primary); }
+.panel-evaluaciones > .seccion-cab h2 {
+  font-size: 1.2rem; font-weight: 700; display: inline-flex; align-items: center; gap: 8px;
+}
+.panel-evaluaciones > .seccion-cab h2::before {
+  content: ""; width: 10px; height: 10px; border-radius: 3px; flex: none;
+  background: linear-gradient(135deg, var(--primary), var(--chispa));
+}
+
+/* --- Escritorio: pie de la barra lateral ordenado (íconos y “Más” en una fila; Apoyar debajo, a lo ancho) --- */
+@media (min-width: 861px) {
+  .sb-pie { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 4px; }
+  .sb-pie .menu { margin-left: auto; order: 2; }
+  .sb-pie > .btn-tema { order: 0; }
+  .sb-pie > .flotante-ancla:has(.btn-campana) { order: 1; }
+  .sb-pie > .flotante-ancla:has(.btn-apoyar) { order: 3; flex: 1 1 100%; }
+  .sb-pie .btn-apoyar {
+    width: 100%; justify-content: center; gap: 6px; padding: 8px 12px; border-radius: 10px; border: 0;
+    color: #fff; background: linear-gradient(120deg, var(--chispa), var(--primary)); font-weight: 800;
+    box-shadow: 0 8px 20px -12px var(--chispa);
+  }
+  .sb-pie .btn-apoyar:hover { transform: translateY(-1px); filter: brightness(1.08); color: #fff; background: linear-gradient(120deg, var(--chispa), var(--primary)); }
+  .sb-pie .btn-apoyar .txt-apoyar { display: inline !important; }
+}
+
+/* --- Celular: el contexto del perfil (ej. carrera universitaria larga) no se monta sobre los íconos --- */
+@media (max-width: 860px) {
+  .sidebar .marca { min-width: 0; overflow: hidden; }
+  .sidebar .marca-texto { min-width: 0; }
+  .sidebar .marca p { max-width: 100%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .sb-pie { min-width: 0; }
+}
