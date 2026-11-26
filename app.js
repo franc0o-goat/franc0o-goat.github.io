@@ -1914,7 +1914,7 @@ function htmlEmpiezaTuRuta(p, visibles) {
           <span class="paso-num" aria-hidden="true">2</span>
           <div class="paso-cuerpo">
             <h3>Define tus metas <small>(opcional)</small></h3>
-            <p>La nota que quieres en cada materia. Puedes hacerlo después.</p>
+            <p>${esc(tono(p).paso2)}</p>
           </div>
         </li>
         <li class="paso">
@@ -1925,6 +1925,11 @@ function htmlEmpiezaTuRuta(p, visibles) {
           </div>
         </li>
       </ol>
+      <ul class="inicio-tips" aria-label="Lo que también puedes hacer">
+        <li><span aria-hidden="true">☰</span><div><strong>Navega</strong><p>${esc(tono(p).tips.nav)}</p></div></li>
+        <li><span aria-hidden="true">💡</span><div><strong>Estudia mejor</strong><p>${esc(tono(p).tips.metodos)} <button class="enlace" data-action="vista" data-vista="estudio">Ver métodos</button></p></div></li>
+        <li><span aria-hidden="true">✓</span><div><strong>Metas claras</strong><p>${esc(tono(p).tips.meta)}</p></div></li>
+      </ul>
       <p class="inicio-pie">¿Solo quieres mirar? <button class="enlace" data-action="cargar-ejemplo">Ver un ejemplo</button> · <button class="enlace" data-action="abrir-guia">Guía paso a paso</button></p>
     </section>`;
 }

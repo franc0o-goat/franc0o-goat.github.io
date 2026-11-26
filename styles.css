@@ -2558,3 +2558,11 @@ dialog { border: 1px solid var(--border-fuerte); border-image: none; }
 }
 /* Universidades: la sigla y el tipo (estatal o privada) son datos, no estados: van en neutro */
 .uni-sigla { color: var(--text); }
+
+/* v22 · Tips cortos de "Empieza tu ruta" (navegación, métodos, metas) */
+.inicio-tips { list-style: none; margin: 14px 0 0; padding: 0; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+.inicio-tips li { display: flex; gap: 10px; align-items: flex-start; min-width: 0; padding: 10px 12px; border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--surface-2); }
+.inicio-tips li > span { flex: none; width: 24px; height: 24px; display: grid; place-items: center; border-radius: 7px; background: var(--primary-soft); color: var(--primary-texto); font-size: .8rem; }
+.inicio-tips strong { font-family: var(--fuente-ui); font-size: .84rem; }
+.inicio-tips p { margin: 2px 0 0; font-size: .8rem; line-height: 1.4; color: var(--muted); }
+@media (max-width: 900px) { .inicio-tips { grid-template-columns: 1fr; } }

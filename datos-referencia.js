@@ -1857,6 +1857,8 @@ const REF = (() => {
   const TONO_ETAPA = {
     // v21: tramo propio para 1° y 2° básico, con frases cortas y sin palabras técnicas
     inicial: {
+      paso2: "Elige qué nota quieres sacar. Puedes hacerlo después.",
+      tips: { nav: "Toca los íconos del menú para cambiar de sección.", metodos: "Ideas para estudiar cada ramo, jugando un poquito.", meta: "Si ya lo lograste, te felicitamos." },
       nombre: '1° y 2° básico',
       inicioLead: '¡Hola! Aquí anotas tus notas y ves cómo te va. ¡Es muy fácil!',
       paso1: 'Elige tus ramos de la lista de tu curso.',
@@ -1868,6 +1870,8 @@ const REF = (() => {
       logro: '¡Ya lo lograste!',
     },
     basica: {
+      paso2: "La nota que quieres en cada ramo. Puedes hacerlo después.",
+      tips: { nav: "Usa el menú para ir a cada sección.", metodos: "Técnicas simples para cada ramo.", meta: "Si tu meta ya está lista, te avisamos con una felicitación." },
       nombre: '3° a 6° básico',
       inicioLead: 'Anota tus notas y verás cómo vas en cada ramo. ¡Es fácil!',
       paso1: 'Elige tus asignaturas de la lista de tu curso o escríbelas tú.',
@@ -1878,6 +1882,8 @@ const REF = (() => {
       nota: 'Pruebas, tareas y trabajos',
     },
     transicion: {
+      paso2: "La nota que quieres en cada materia. Es opcional.",
+      tips: { nav: "Menú lateral por grupos (abajo en el celular).", metodos: "Técnicas según cómo se aprende cada materia.", meta: "Meta asegurada = felicitación, nunca un \"1.0\"." },
       nombre: '7° básico a 2° medio',
       inicioLead: 'Tres pasos y verás tus promedios y cuánto necesitas.',
       paso1: 'Desde el currículum de tu nivel, a mano o desde una foto o PDF.',
@@ -1888,6 +1894,8 @@ const REF = (() => {
       nota: 'Pruebas, controles y trabajos',
     },
     admision: {
+      paso2: "Metas por asignatura alineadas con tu NEM. Opcional.",
+      tips: { nav: "Menú por grupos: notas, NEM, PAES y universidades (abajo en el celular).", metodos: "Técnicas por materia para el colegio y la PAES.", meta: "Meta asegurada = aviso de logro, nunca un \"1.0\"." },
       nombre: '3° y 4° medio',
       inicioLead: 'Tus notas de estos años pesan en tu NEM y tu Ranking: llévalas al día.',
       paso1: 'Desde el currículum de tu nivel, a mano o desde una foto o PDF de tu informe.',
@@ -1898,6 +1906,8 @@ const REF = (() => {
       nota: 'Pruebas, controles y ensayos',
     },
     uni: {
+      paso2: "Nota objetivo por ramo. Opcional.",
+      tips: { nav: "Menú por grupos: notas, métodos y herramientas (abajo en el celular).", metodos: "Técnicas por ramo para certámenes y exámenes.", meta: "Meta asegurada = aviso de logro, nunca un \"1.0\"." },
       nombre: 'Universidad',
       inicioLead: 'Registra tus certámenes y controles, y sigue tu avance en cada ramo.',
       paso1: 'Desde la malla de tu carrera, a mano o desde una foto o PDF.',
