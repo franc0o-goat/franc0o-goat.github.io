@@ -68,36 +68,48 @@
       <span>Ir a mis notas</span>
     </button>
 
-    <p class="sb-seccion" id="sb-sec-nav">Secciones</p>
-    <nav class="tabs" role="tablist" aria-labelledby="sb-sec-nav" aria-orientation="vertical">
-      <button class="tab" role="tab" data-action="vista" data-vista="notas">
-        <svg class="tab-icono" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M6 2h9l5 5v13a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2Zm8 1.5V8h4.5L14 3.5ZM8 12v2h8v-2H8Zm0 4v2h5v-2H8Z"/></svg>
-        <span>Mis Notas y Metas</span>
-      </button>
-      <button class="tab" role="tab" data-action="vista" data-vista="admision">
-        <svg class="tab-icono" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M12 3 1 9l11 6 9-4.9V17h2V9L12 3Zm-6 9.2V16c0 2 2.7 4 6 4s6-2 6-4v-3.8l-6 3.3-6-3.3Z"/></svg>
-        <span>NEM y Admisión</span> <span id="tab-nem-badge" class="pill">Escolar</span>
-      </button>
-      <button class="tab" role="tab" data-action="vista" data-vista="paes">
-        <svg class="tab-icono" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M5 3h14a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2Zm2 4v2h10V7H7Zm0 4v2h10v-2H7Zm0 4v2h6v-2H7Z"/></svg>
-        <span>PAES</span>
-      </button>
-      <button class="tab" role="tab" data-action="vista" data-vista="estudio">
-        <svg class="tab-icono" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M9 21h6v-1.5H9V21Zm3-19a7 7 0 0 0-4 12.74V17a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1v-2.26A7 7 0 0 0 12 2Zm2.5 11.5-.5.35V16h-4v-2.15l-.5-.35A5 5 0 1 1 14.5 13.5Z"/></svg>
-        <span>Métodos de estudio</span>
-      </button>
-      <button class="tab" role="tab" data-action="vista" data-vista="universidades">
-        <svg class="tab-icono" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M12 2 2 7v2h20V7L12 2ZM4 11v7h3v-7H4Zm6.5 0v7h3v-7h-3ZM17 11v7h3v-7h-3ZM2 20v2h20v-2H2Z"/></svg>
-        <span>Universidades</span>
-      </button>
+    <!-- v21: navegación agrupada en acordeones (Tu año · Tu futuro · Herramientas); la sección activa siempre queda visible -->
+    <nav class="tabs" aria-label="Secciones">
+      <div class="sb-grupo" data-grupo="anio">
+        <button class="sb-grupo-cab" data-action="sb-grupo" data-grupo="anio" aria-expanded="true" aria-controls="sb-g-anio"><span>Tu año</span><i class="sb-grupo-punto" aria-hidden="true"></i><svg class="sb-chevron" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M8.6 5.6 7.2 7l5 5-5 5 1.4 1.4L15 12z"/></svg></button>
+        <div class="sb-grupo-cuerpo" id="sb-g-anio">
+          <button class="tab" data-action="vista" data-vista="notas">
+            <svg class="tab-icono" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M6 2h9l5 5v13a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2Zm8 1.5V8h4.5L14 3.5ZM8 12v2h8v-2H8Zm0 4v2h5v-2H8Z"/></svg>
+            <span>Mis Notas y Metas</span>
+          </button>
+          <button class="tab" data-action="vista" data-vista="estudio">
+            <svg class="tab-icono" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M9 21h6v-1.5H9V21Zm3-19a7 7 0 0 0-4 12.74V17a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1v-2.26A7 7 0 0 0 12 2Zm2.5 11.5-.5.35V16h-4v-2.15l-.5-.35A5 5 0 1 1 14.5 13.5Z"/></svg>
+            <span>Métodos de estudio</span>
+          </button>
+        </div>
+      </div>
+      <div class="sb-grupo" data-grupo="futuro">
+        <button class="sb-grupo-cab" data-action="sb-grupo" data-grupo="futuro" aria-expanded="true" aria-controls="sb-g-futuro"><span>Tu futuro</span><i class="sb-grupo-punto" aria-hidden="true"></i><svg class="sb-chevron" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M8.6 5.6 7.2 7l5 5-5 5 1.4 1.4L15 12z"/></svg></button>
+        <div class="sb-grupo-cuerpo" id="sb-g-futuro">
+          <button class="tab" data-action="vista" data-vista="admision">
+            <svg class="tab-icono" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M12 3 1 9l11 6 9-4.9V17h2V9L12 3Zm-6 9.2V16c0 2 2.7 4 6 4s6-2 6-4v-3.8l-6 3.3-6-3.3Z"/></svg>
+            <span>NEM y Admisión</span> <span id="tab-nem-badge" class="pill">Escolar</span>
+          </button>
+          <button class="tab" data-action="vista" data-vista="paes">
+            <svg class="tab-icono" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M5 3h14a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2Zm2 4v2h10V7H7Zm0 4v2h10v-2H7Zm0 4v2h6v-2H7Z"/></svg>
+            <span>PAES</span>
+          </button>
+          <button class="tab" data-action="vista" data-vista="universidades">
+            <svg class="tab-icono" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M12 2 2 7v2h20V7L12 2ZM4 11v7h3v-7H4Zm6.5 0v7h3v-7h-3ZM17 11v7h3v-7h-3ZM2 20v2h20v-2H2Z"/></svg>
+            <span>Universidades</span>
+          </button>
+        </div>
+      </div>
     </nav>
 
     <!-- Atajos frecuentes -->
-    <p class="sb-seccion">Atajos</p>
-    <div class="sb-atajos" aria-label="Atajos">
-      <button class="sb-atajo" data-action="abrir-foto"><span aria-hidden="true">⇪</span> <span class="sb-atajo-txt">Importar notas</span></button>
-      <button class="sb-atajo" data-action="abrir-fechas"><span aria-hidden="true">◷</span> <span class="sb-atajo-txt">Fechas clave</span></button>
-      <button class="sb-atajo" data-action="abrir-ayuda"><span aria-hidden="true">?</span> <span class="sb-atajo-txt">Ayuda</span></button>
+    <div class="sb-grupo sb-grupo-atajos" data-grupo="atajos">
+      <button class="sb-grupo-cab" data-action="sb-grupo" data-grupo="atajos" aria-expanded="true" aria-controls="sb-g-atajos"><span>Herramientas</span><i class="sb-grupo-punto" aria-hidden="true"></i><svg class="sb-chevron" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M8.6 5.6 7.2 7l5 5-5 5 1.4 1.4L15 12z"/></svg></button>
+      <div class="sb-atajos sb-grupo-cuerpo" id="sb-g-atajos" aria-label="Atajos">
+        <button class="sb-atajo" data-action="abrir-foto"><span aria-hidden="true">⇪</span> <span class="sb-atajo-txt">Importar notas</span></button>
+        <button class="sb-atajo" data-action="abrir-fechas"><span aria-hidden="true">◷</span> <span class="sb-atajo-txt">Fechas clave</span></button>
+        <button class="sb-atajo" data-action="abrir-ayuda"><span aria-hidden="true">?</span> <span class="sb-atajo-txt">Ayuda</span></button>
+      </div>
     </div>
 
     <div class="perfil-bar sb-pie">

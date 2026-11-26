@@ -1855,8 +1855,20 @@ const REF = (() => {
    *   basica (1°–6° básico) · transicion (7° básico – 2° medio) · admision (3°–4° medio) · uni
    * ========================================================= */
   const TONO_ETAPA = {
+    // v21: tramo propio para 1° y 2° básico, con frases cortas y sin palabras técnicas
+    inicial: {
+      nombre: '1° y 2° básico',
+      inicioLead: '¡Hola! Aquí anotas tus notas y ves cómo te va. ¡Es muy fácil!',
+      paso1: 'Elige tus ramos de la lista de tu curso.',
+      paso3: 'Cuando te devuelvan una prueba, anota la nota aquí.',
+      progreso: 'Si algo te cuesta, pide ayuda a tu profe o a alguien de tu casa. ¡Preguntar está muy bien!',
+      guia: 'Repasa un ratito cada día, jugando o con alguien de tu casa.',
+      estudio: 'Ideas cortas y entretenidas para aprender un poquito cada día.',
+      nota: 'Pruebas y tareas',
+      logro: '¡Ya lo lograste!',
+    },
     basica: {
-      nombre: 'Educación básica',
+      nombre: '3° a 6° básico',
       inicioLead: 'Anota tus notas y verás cómo vas en cada ramo. ¡Es fácil!',
       paso1: 'Elige tus asignaturas de la lista de tu curso o escríbelas tú.',
       paso3: 'Cada vez que te entreguen una prueba, anótala aquí.',

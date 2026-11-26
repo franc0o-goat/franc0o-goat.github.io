@@ -310,7 +310,7 @@ const fmt = (x, d = dec()) => (x === null || x === undefined || !Number.isFinite
 function textoNecesaria(v, largo = false) {
   const E = escala();
   if (v === null || v === undefined || !Number.isFinite(v)) return '—';
-  if (v <= E.min + Calc.EPS) return largo ? 'nada más: tu meta ya está asegurada' : '¡Meta asegurada!';
+  if (v <= E.min + Calc.EPS) return largo ? 'nada más: tu meta ya está asegurada' : (seguroTono()?.logro || '¡Meta asegurada!');
   if (v < E.aprobacion - Calc.EPS) return largo ? `aprobar (${fmt(E.aprobacion, 1)})` : `Basta aprobar (${fmt(E.aprobacion, 1)})`;
   if (v > E.max + Calc.EPS) return largo ? 'más que la nota máxima' : 'Fuera de alcance';
   return Calc.redondearArriba(v, 1).toFixed(1);
@@ -550,7 +550,7 @@ function render() {
     $('#vista-universidades').hidden = !enUni;
     document.querySelectorAll('.tab[data-vista]').forEach(b => {
       b.classList.toggle('activa', b.dataset.vista === store.vista);
-      b.setAttribute('aria-selected', b.dataset.vista === store.vista);
+      if (b.dataset.vista === store.vista) b.setAttribute('aria-current', 'page'); else b.removeAttribute('aria-current');
     });
     $('#tab-nem-badge').hidden = !esEscolar();
     if (enAdmision) { $('#vista-admision').dataset.sub = store.subvista === 'cortes' ? 'cortes' : 'nem'; renderAdmision(); seguro(aplicarPlegables); return; }
@@ -981,17 +981,39 @@ document.addEventListener('click', e => { if (e.target.closest?.('#sidebar .tab,
 document.addEventListener('keydown', e => { if (e.key === 'Escape') cerrarSidebar(); });
 addEventListener('resize', () => { if (innerWidth > 1180 || innerWidth <= 860) cerrarSidebar(); });
 
+/* ---------- Grupos plegables de la barra lateral (v21) ---------- */
+
+// Preferencia por navegador (comodidad, no dato académico): qué grupos dejó cerrados el usuario
+const CLAVE_SB_GRUPOS = 'rutaAcademica.sbGrupos';
+const sbPlegados = (() => { try { return new Set(JSON.parse(localStorage.getItem(CLAVE_SB_GRUPOS) || '[]')); } catch { return new Set(); } })();
+function aplicarSbGrupos() {
+  document.querySelectorAll('.sb-grupo').forEach(g => {
+    const cerrado = sbPlegados.has(g.dataset.grupo);
+    g.classList.toggle('plegado', cerrado);
+    g.querySelector('.sb-grupo-cab')?.setAttribute('aria-expanded', String(!cerrado));
+  });
+}
+function alternarSbGrupo(id) {
+  if (sbPlegados.has(id)) sbPlegados.delete(id); else sbPlegados.add(id);
+  try { localStorage.setItem(CLAVE_SB_GRUPOS, JSON.stringify([...sbPlegados])); } catch { /* sin almacenamiento: solo dura esta visita */ }
+  aplicarSbGrupos();
+}
+aplicarSbGrupos();
+
 /* ---------- Tono según la etapa del perfil (v20) ---------- */
 
-/** basica (1°–6° básico) · transicion (7° básico – 2° medio) · admision (3°–4° medio) · uni */
+/** inicial (1°–2° básico) · basica (3°–6° básico) · transicion (7° básico – 2° medio) · admision (3°–4° medio) · uni */
 function etapaPerfil(p = perfil()) {
   if (p.modalidad === 'uni') return 'uni';
   const k = String(p.nivel || '');
-  if (/^[1-6]B$/.test(k)) return 'basica';
+  if (/^[12]B$/.test(k)) return 'inicial';
+  if (/^[3-6]B$/.test(k)) return 'basica';
   if (k === '3M' || k === '4M') return 'admision';
   return 'transicion';
 }
 const tono = (p = perfil()) => REF.TONO_ETAPA[etapaPerfil(p)];
+/** Tono sin romper si aún no hay perfil cargado (textos de apoyo). */
+function seguroTono() { try { return tono(); } catch { return null; } }
 
 /* ---------- Métodos de estudio por materia (v20) ---------- */
 
@@ -1009,7 +1031,7 @@ function grupoMetodos(nombre) {
 function metodosDe(grupo) {
   const g = REF.METODOS_ESTUDIO[grupo] || REF.METODOS_ESTUDIO.general;
   const etapa = etapaPerfil();
-  const extra = etapa === 'uni' ? g.uni : etapa === 'basica' ? g.basica : null;
+  const extra = etapa === 'uni' ? g.uni : (etapa === 'basica' || etapa === 'inicial') ? g.basica : null;
   return [...(extra ? [{ ...extra, destacado: true }] : []), ...g.metodos];
 }
 
@@ -1073,7 +1095,7 @@ function htmlTarjetasUniversidades() {
   if (!lista.length) return '<p class="muted vacio-lista">Ninguna universidad coincide. Prueba con otra palabra o quita el filtro.</p>';
   return lista.map((u, i) => `
     <article class="uni-tarjeta" style="--uni-color: var(--cat-${(i % 8) + 1})">
-      <header><span class="uni-sigla">${esc(u.sigla || u.nombre.replace(/^Universidad\s+/i, '').slice(0, 4))}</span><span class="chip ${u.tipo === 'Estatal' ? 'ok' : 'info'}">${u.tipo}</span></header>
+      <header><span class="uni-sigla">${esc(u.sigla || u.nombre.replace(/^Universidad\s+/i, '').slice(0, 4))}</span><span class="chip">${u.tipo}</span></header>
       <h3>${esc(u.nombre.replace(/\s*\([^)]*\)\s*$/, ''))}</h3>
       <p class="muted">${u.carreras ? `${u.carreras} carrera(s) con corte 2026 en el catálogo` : 'Sin carreras en el catálogo de la app'}</p>
       <div class="uni-acciones">
@@ -5019,6 +5041,7 @@ document.addEventListener('click', e => {
     case 'abrir-fechas': abrirFechas(); break;
     case 'ir-a-notas': cerrarSidebar(); irAMisNotas(); break;
     case 'alternar-sidebar': alternarSidebar(); break;
+    case 'sb-grupo': alternarSbGrupo(btn.dataset.grupo); break;
     case 'ir-metodos': estudioSel = { asig: btn.dataset.asig }; store.vista = 'estudio'; actualizar(); window.scrollTo({ top: 0 }); break;
     case 'estudio-sel': estudioSel = btn.dataset.asig ? { asig: btn.dataset.asig } : { grupo: btn.dataset.grupo }; renderEstudio(); break;
     case 'estudio-check': {
