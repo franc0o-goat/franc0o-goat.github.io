@@ -2566,3 +2566,95 @@ dialog { border: 1px solid var(--border-fuerte); border-image: none; }
 .inicio-tips strong { font-family: var(--fuente-ui); font-size: .84rem; }
 .inicio-tips p { margin: 2px 0 0; font-size: .8rem; line-height: 1.4; color: var(--muted); }
 @media (max-width: 900px) { .inicio-tips { grid-template-columns: 1fr; } }
+
+/* =========================================================
+ * v23 · Métodos sin recortes, resumen equilibrado, menos volumen en "Mis Notas y Metas"
+ * ========================================================= */
+
+/* --- Métodos de estudio: tarjetas que nunca se desbordan --- */
+.vista-estudio { gap: 24px; }
+.metodos-grid { grid-template-columns: repeat(auto-fill, minmax(min(100%, 240px), 1fr)); gap: 12px; }
+@media (min-width: 1400px) { .metodos-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
+.metodo { min-width: 0; overflow: hidden; grid-template-rows: auto auto 1fr auto auto; gap: 8px; padding: 14px; }
+.metodo header { display: flex; align-items: flex-start; justify-content: space-between; gap: 8px; min-width: 0; }
+.metodo h3 { min-width: 0; overflow-wrap: anywhere; line-height: 1.3; }
+.metodo .metodo-tiempo { flex: none; white-space: nowrap; font-size: .7rem; }
+.metodo-tecnica { margin: 0; font-family: var(--fuente-ui); font-size: .72rem !important; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; color: var(--primary-texto); }
+.metodo p { margin: 0; overflow-wrap: break-word; }
+.metodo .metodo-btn { justify-self: stretch; width: 100%; max-width: 100%; justify-content: center; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; margin-top: 4px; }
+.estudio-enfoque strong { color: var(--text); font-weight: 650; }
+
+/* --- Barra de períodos: ícono en vez de "⋯" y más aire entre controles --- */
+.barra-periodos { gap: 12px 16px; }
+.periodos-acciones { gap: 10px; }
+.periodos-acciones .btn { display: inline-flex; align-items: center; gap: 6px; }
+.ico-periodo { flex: none; opacity: .85; }
+.periodos-acciones .peligro { margin-right: 6px; }
+@media (max-width: 860px) { .periodos-acciones { gap: 6px; } }
+
+/* --- Resumen superior: cuatro tarjetas de altura pareja --- */
+.resumen {
+  display: grid; grid-template-columns: repeat(2, minmax(130px, .7fr)) minmax(0, 1fr) minmax(0, 1.35fr);
+  gap: 0; align-items: stretch; margin-bottom: 0;
+}
+.resumen .stat { display: flex; flex-direction: column; gap: 4px; padding: 16px 18px; }
+.resumen .stat-valor { font-size: 2.1rem; line-height: 1.05; }
+.stat-prioridad .stat-sub { display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+.progreso-fila { display: flex; align-items: center; gap: 10px; margin-top: 4px; }
+.progreso-fila .progreso-barra { flex: 1; margin: 0; }
+.progreso-pct { flex: none; font-size: .74rem; color: var(--muted); }
+.progreso-puntos { list-style: none; margin: 8px 0 0; padding: 0; display: grid; gap: 4px; font-size: .84rem; line-height: 1.4; }
+.progreso-puntos li { position: relative; padding-left: 14px; }
+.progreso-puntos li::before { content: ""; position: absolute; left: 2px; top: .58em; width: 5px; height: 5px; border-radius: 50%; background: var(--border-fuerte); }
+.stat-mensaje .progreso-tono { margin-top: auto; padding-top: 8px; font-size: .74rem; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+@media (max-width: 1180px) {
+  .resumen { grid-template-columns: 1fr 1fr; }
+  .resumen .stat:nth-child(3) { border-left: 0; }
+  .resumen .stat:nth-child(n+3) { border-top: 1px solid var(--border); }
+}
+
+/* --- Franjas superiores separadas del área de trabajo --- */
+#vista-notas > #resumen, #vista-notas > #promocion, #vista-notas > #meta-general { margin-bottom: 12px; }
+#vista-notas > .layout { margin-top: 24px; }
+@media (max-width: 860px) { #vista-notas > .layout { margin-top: 16px; } }
+
+/* --- Métrica de texto ("¡Meta asegurada!", "Fuera de alcance") sin cortarse --- */
+.metrica .valor.valor-texto { font-size: 1rem !important; line-height: 1.25; white-space: normal; overflow-wrap: anywhere; }
+
+/* --- Preparación para tu próxima evaluación: tres tarjetas breves --- */
+.guia-tarjetas { grid-template-columns: repeat(auto-fit, minmax(min(100%, 180px), 1fr)); gap: 8px; margin-top: 12px; }
+.guia-tarjetas .guia-tarjeta {
+  position: relative; display: grid; gap: 4px; align-content: start; min-width: 0;
+  padding: 10px 36px 10px 12px; border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--surface-2);
+  font-size: .82rem;
+}
+.guia-tarjetas .guia-tarjeta:last-child { border-bottom: 1px solid var(--border); }
+.guia-tarjeta strong { font-size: .86rem; }
+.guia-tarjeta p { margin: 0; color: var(--muted); line-height: 1.4; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+.guia-mini {
+  position: absolute; top: 8px; right: 8px; width: 24px; height: 24px; display: grid; place-items: center;
+  border: 1px solid var(--border-fuerte); border-radius: 7px; background: transparent; color: var(--muted); cursor: pointer; font-weight: 700;
+}
+.guia-mini:hover:not(:disabled) { color: var(--text); border-color: var(--primary); background: var(--primary-soft); }
+.guia-mini:disabled { color: var(--ok); border-color: transparent; cursor: default; }
+@media (max-width: 860px) { .guia-tarjetas .guia-tarjeta { flex-direction: initial; } }
+
+/* =========================================================
+ * v24 · Tema claro más gris (menos encandilante) y resumen sin huecos
+ * ========================================================= */
+:root[data-theme="light"] {
+  --bg: #c8c8cb; --surface: #d4d4d7; --surface-2: #cbcbce; --surface-3: #bfbfc3;
+  --border: #b6b6bb; --border-fuerte: #a4a4aa;
+  --text: #141417; --muted: #45454d;
+  --sidebar: #d0d0d3; --sidebar-borde: #b6b6bb; --tapa: #d0d0d3;
+  --primary-soft: rgba(100, 64, 245, .14); --primary-texto: #4a2bd0;
+}
+/* Promedio, acumulado y prioridad en una fila; "Tu progreso" ocupa todo el ancho debajo
+   (así ya no queda espacio vacío bajo los promedios cuando el progreso es largo) */
+.resumen { grid-template-columns: minmax(140px, .8fr) minmax(140px, .8fr) minmax(0, 1.6fr); }
+.resumen .stat-mensaje { grid-column: 1 / -1; border-left: 0 !important; border-top: 1px solid var(--border); }
+.stat-mensaje .progreso-puntos { grid-template-columns: repeat(auto-fit, minmax(min(100%, 320px), 1fr)); column-gap: 24px; }
+@media (max-width: 1180px) {
+  .resumen { grid-template-columns: 1fr 1fr; }
+  .resumen .stat-prioridad { grid-column: 1 / -1; border-left: 0 !important; border-top: 1px solid var(--border); }
+}

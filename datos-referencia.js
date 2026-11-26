@@ -1888,7 +1888,7 @@ const REF = (() => {
       inicioLead: 'Tres pasos y verás tus promedios y cuánto necesitas.',
       paso1: 'Desde el currículum de tu nivel, a mano o desde una foto o PDF.',
       paso3: 'Verás tu promedio y dónde enfocarte.',
-      progreso: 'Estos años arman tus hábitos de estudio. Y desde 1° Medio, tus promedios ya cuentan para el NEM.',
+      progreso: 'Fíjate en la ponderación de cada prueba: define tu promedio de cierre. Desde 1° Medio, cuenta para el NEM.',
       guia: 'Ahora es el momento de crear rutinas: lo que aprendas a organizar hoy te sirve en 3° y 4° Medio.',
       estudio: 'Técnicas para crear hábitos de estudio que te van a servir en enseñanza media y la PAES.',
       nota: 'Pruebas, controles y trabajos',
@@ -1901,7 +1901,7 @@ const REF = (() => {
       paso1: 'Desde el currículum de tu nivel, a mano o desde una foto o PDF de tu informe.',
       paso3: 'Verás tu promedio, cuánto necesitas y cómo te afecta para postular.',
       progreso: 'Cada décima de estos años suma a tu NEM y tu Ranking. Combina el ritmo del colegio con tus ensayos PAES.',
-      guia: 'Organiza tu semana entre las pruebas del colegio y la preparación PAES: las dos cuentan para postular.',
+      guia: 'Reparte tu semana entre el colegio y la PAES: estudia por ejes temáticos y mide tu avance con ensayos.',
       estudio: 'Técnicas para rendir en el colegio y, a la vez, prepararte para la PAES.',
       nota: 'Pruebas, controles y ensayos',
     },
@@ -1920,128 +1920,165 @@ const REF = (() => {
   };
 
   /* =========================================================
-   * MÉTODOS DE ESTUDIO POR MATERIA (v20)
-   * Técnicas concretas según la naturaleza de cada asignatura. `uni` y `basica` son variantes
-   * opcionales por etapa; `check` es la tarea que se puede enviar al checklist de la asignatura.
+   * MÉTODOS DE ESTUDIO (v23): técnicas con evidencia de la ciencia cognitiva
+   * (práctica de recuperación, repetición espaciada, Feynman, práctica intercalada y
+   * elaboración/autoexplicación) aplicadas a cada materia según su formato de evaluación.
+   * `tecnica` apunta a TECNICAS_ESTUDIO; `uni` y `basica` son variantes opcionales por etapa;
+   * `check` es la tarea que se puede enviar al checklist de la asignatura.
    * ========================================================= */
+  const TECNICAS_ESTUDIO = {
+    recall: { nombre: 'Práctica de recuperación', corto: 'Active recall',
+      como: 'Cierra apuntes y guías. Responde preguntas o reconstruye el tema desde cero, sin mirar. Recién después compara y corrige.',
+      porque: 'Sacar la información de memoria la fija mucho más que releer o subrayar.' },
+    espaciada: { nombre: 'Repetición espaciada', corto: 'Spaced repetition',
+      como: 'Repasa a las 24 h, a los 3 días, a los 7 y a los 14. En cada repaso dedica más tiempo a lo que te costó.',
+      porque: 'Repasar justo cuando empiezas a olvidar alarga lo que recuerdas.' },
+    feynman: { nombre: 'Método Feynman', corto: 'Feynman',
+      como: 'Explica el concepto con palabras simples, como a alguien de 12 años. Donde te trabes hay un vacío: vuelve a la fuente y ciérralo.',
+      porque: 'Simplificar obliga a entender; repetir de memoria no.' },
+    intercalada: { nombre: 'Práctica intercalada', corto: 'Interleaving',
+      como: 'Mezcla tipos de problemas o temas en una misma sesión, en vez de hacer 30 ejercicios iguales seguidos.',
+      porque: 'Entrena a reconocer qué método usar, que es lo que pide la prueba.' },
+    elaboracion: { nombre: 'Elaboración y autoexplicación', corto: 'Elaboración',
+      como: 'Pregúntate por qué aplica cada regla y por qué cada alternativa incorrecta es incorrecta. Resuelve sin apoyo y justifica cada paso.',
+      porque: 'Conectar ideas y justificar es clave en lógica y en preguntas tipo PAES.' },
+  };
+
   const METODOS_ESTUDIO = {
     matematica: {
-      nombre: 'Matemática', icono: '∑', enfoque: 'Se aprende resolviendo, no leyendo. Busca patrones y practica con tiempo.',
+      nombre: 'Matemática', icono: '∑', formato: 'Cálculo y modelamiento',
+      enfoque: 'Se aprende resolviendo sin apoyo y mezclando tipos de problemas.',
       metodos: [
-        { titulo: 'Ejercicios por patrón', como: 'Agrupa ejercicios por tipo (ecuaciones, funciones, probabilidad…) y resuelve 5 seguidos del mismo hasta que el procedimiento salga solo.', porque: 'Reconocer el tipo de problema es la mitad de resolverlo.', tiempo: '30 min', check: 'Resolver 5 ejercicios seguidos de un mismo tipo' },
-        { titulo: 'Error a la libreta', como: 'Anota cada error con la corrección y por qué ocurrió (signo, despeje, concepto). Repásala antes de cada prueba.', porque: 'Los errores se repiten: anotarlos evita cometerlos de nuevo.', tiempo: '10 min', check: 'Llevar una libreta de errores de Matemática' },
-        { titulo: 'Práctica con reloj', como: 'Haz una guía completa con el tiempo de la prueba real. Si te trabas más de 2 minutos, marca y sigue.', porque: 'Entrena el ritmo y evita quedarte pegado en un ejercicio.', tiempo: '45 min', check: 'Hacer una guía completa con tiempo de prueba' },
-        { titulo: 'Explica el procedimiento', como: 'Resuelve un ejercicio diciendo en voz alta cada paso y su razón. Si no puedes justificar un paso, ahí está tu vacío.', porque: 'Separar “me lo sé de memoria” de “lo entiendo”.', tiempo: '15 min', check: 'Explicar en voz alta 3 ejercicios resueltos' },
+        { tecnica: 'intercalada', titulo: 'Guía mezclada', como: 'Arma una guía con ejercicios de 3 o 4 unidades distintas (ecuaciones, funciones, geometría, probabilidad) y resuélvela en orden aleatorio.', tiempo: '40 min', check: 'Resolver una guía mezclada de 3 unidades' },
+        { tecnica: 'recall', titulo: 'Resolver sin mirar', como: 'Tapa el ejemplo resuelto del cuaderno y hazlo desde cero. Compara solo al final.', tiempo: '20 min', check: 'Rehacer 3 ejemplos resueltos sin mirar' },
+        { tecnica: 'elaboracion', titulo: '¿Por qué este paso?', como: 'Al lado de cada paso escribe la regla que usaste. En selección múltiple, explica por qué cada alternativa incorrecta falla.', tiempo: '20 min', check: 'Justificar cada paso de 3 ejercicios' },
+        { tecnica: 'espaciada', titulo: 'Libreta de errores espaciada', como: 'Anota cada error con su corrección. Vuelve a hacer esos ejercicios a las 24 h, 3 y 7 días.', tiempo: '10 min', check: 'Repasar la libreta de errores (24 h · 3 d · 7 d)' },
       ],
-      uni: { titulo: 'Certámenes anteriores', como: 'Resuelve certámenes de semestres pasados sin mirar la pauta y compara después. Llévalos a la ayudantía.', porque: 'Los profesores repiten estructuras de preguntas.', tiempo: '90 min', check: 'Resolver un certamen anterior sin pauta' },
-      basica: { titulo: 'Juego de cálculo', como: 'Practica tablas y cálculo mental 10 minutos al día con tarjetas o un juego con tu familia.', porque: 'La rapidez en lo básico te deja energía para pensar los problemas.', tiempo: '10 min', check: 'Practicar cálculo mental 10 minutos' },
+      uni: { tecnica: 'recall', titulo: 'Certámenes anteriores', como: 'Resuelve certámenes pasados sin pauta y con tiempo. Compara después y lleva tus dudas a la ayudantía.', tiempo: '90 min', check: 'Resolver un certamen anterior sin pauta' },
+      basica: { tecnica: 'espaciada', titulo: 'Cálculo cada día', como: 'Practica tablas y cálculo mental 10 minutos al día, con tarjetas o un juego en familia.', tiempo: '10 min', check: 'Practicar cálculo mental 10 minutos' },
     },
     fisica: {
-      nombre: 'Física', icono: '⚛', enfoque: 'Entiende el fenómeno antes de la fórmula: dibuja, identifica datos y unidades.',
+      nombre: 'Física', icono: '⚛', formato: 'Conceptos y modelamiento',
+      enfoque: 'Primero el fenómeno, después la fórmula: dibuja, identifica datos y unidades.',
       metodos: [
-        { titulo: 'Dibuja antes de calcular', como: 'Para cada problema haz un esquema: cuerpos, fuerzas, vectores o circuito. Recién después elige la fórmula.', porque: 'La mayoría de los errores vienen de no entender la situación, no del cálculo.', tiempo: '20 min', check: 'Dibujar el esquema de 5 problemas de Física' },
-        { titulo: 'Datos, incógnita y unidades', como: 'Escribe siempre: qué sé, qué busco y en qué unidades. Revisa que el resultado tenga unidades y orden de magnitud razonables.', porque: 'Detecta errores de despeje y de unidades antes de entregar.', tiempo: 'en cada ejercicio', check: 'Revisar unidades en todos los ejercicios de la guía' },
-        { titulo: 'Formulario propio', como: 'Arma una hoja con cada fórmula, qué significa cada letra y cuándo se usa (y cuándo no).', porque: 'Saber cuándo aplica una fórmula vale más que memorizarla.', tiempo: '30 min', check: 'Armar mi formulario de Física con cuándo usar cada fórmula' },
-        { titulo: 'Conecta con lo cotidiano', como: 'Busca un ejemplo real de cada tema (frenar en bicicleta, un enchufe, un espejo) y explícalo con lo aprendido.', porque: 'Las preguntas tipo PAES y de desarrollo parten de situaciones reales.', tiempo: '15 min', check: 'Explicar un ejemplo cotidiano de cada tema' },
+        { tecnica: 'feynman', titulo: 'Explica el fenómeno', como: 'Antes de calcular, explica en dos frases qué está pasando (qué fuerza actúa, qué se conserva). Si no puedes, repasa el concepto.', tiempo: '15 min', check: 'Explicar con palabras simples 3 fenómenos de la unidad' },
+        { tecnica: 'intercalada', titulo: 'Problemas mezclados', como: 'Mezcla problemas de cinemática, dinámica y energía. Antes de resolver, decide qué principio usar y por qué.', tiempo: '40 min', check: 'Resolver 6 problemas mezclados de distintas unidades' },
+        { tecnica: 'recall', titulo: 'Formulario desde cero', como: 'Escribe sin mirar cada fórmula, qué significa cada letra y cuándo se usa. Compara con tus apuntes.', tiempo: '15 min', check: 'Reconstruir el formulario de memoria' },
+        { tecnica: 'elaboracion', titulo: 'Dibujo y unidades', como: 'Haz un esquema de cada problema y revisa que el resultado tenga unidades y orden de magnitud razonables.', tiempo: '20 min', check: 'Dibujar y revisar unidades en 5 problemas' },
       ],
-      uni: { titulo: 'Problemas de ayudantía', como: 'Rehaz los problemas de ayudantía sin mirar la solución; si te trabas, mira solo el primer paso y sigue tú.', porque: 'Los certámenes se parecen más a la ayudantía que a la cátedra.', tiempo: '60 min', check: 'Rehacer 3 problemas de ayudantía sin solución' },
+      uni: { tecnica: 'recall', titulo: 'Ayudantías sin solución', como: 'Rehaz los problemas de ayudantía sin la solución. Si te trabas, mira solo el primer paso y sigue tú.', tiempo: '60 min', check: 'Rehacer 3 problemas de ayudantía sin solución' },
     },
     quimica: {
-      nombre: 'Química', icono: '⚗', enfoque: 'Mezcla memoria (nomenclatura, conceptos) y cálculo (mol, estequiometría).',
+      nombre: 'Química', icono: '⚗', formato: 'Memoria estructurada y cálculo',
+      enfoque: 'Combina memoria (nomenclatura, conceptos) con cálculo (mol, estequiometría).',
       metodos: [
-        { titulo: 'Tarjetas de nomenclatura', como: 'Haz tarjetas con fórmula por un lado y nombre por el otro. Repasa primero las que fallas.', porque: 'La nomenclatura se fija con repetición espaciada, no con una lectura.', tiempo: '15 min', check: 'Hacer tarjetas de nomenclatura y repasarlas' },
-        { titulo: 'Estequiometría paso a paso', como: 'Usa siempre la misma secuencia: balancear → pasar a moles → proporción → pasar a la unidad pedida.', porque: 'Una receta fija evita perderse en los cálculos.', tiempo: '30 min', check: 'Resolver 5 ejercicios de estequiometría con la misma secuencia' },
-        { titulo: 'Mapa de conceptos', como: 'Une en un mapa los conceptos del tema (átomo, enlace, mol, solución…) con flechas que digan cómo se relacionan.', porque: 'Ver las conexiones ayuda en preguntas de análisis.', tiempo: '25 min', check: 'Hacer un mapa conceptual de la unidad de Química' },
-        { titulo: 'Tabla periódica activa', como: 'Practica ubicar elementos y predecir propiedades (tamaño, electronegatividad) según su posición.', porque: 'Entender las tendencias evita memorizar elemento por elemento.', tiempo: '15 min', check: 'Practicar tendencias de la tabla periódica' },
+        { tecnica: 'espaciada', titulo: 'Tarjetas de nomenclatura', como: 'Fórmula por un lado y nombre por el otro. Repasa a las 24 h, 3 y 7 días, empezando por las que fallas.', tiempo: '15 min', check: 'Repasar tarjetas de nomenclatura (24 h · 3 d · 7 d)' },
+        { tecnica: 'intercalada', titulo: 'Estequiometría mezclada', como: 'Mezcla ejercicios de mol, reactivo limitante, rendimiento y soluciones en una misma sesión.', tiempo: '35 min', check: 'Resolver 6 ejercicios mezclados de estequiometría' },
+        { tecnica: 'feynman', titulo: 'Explica la reacción', como: 'Explica con palabras simples por qué ocurre un enlace o una reacción. Donde te trabes, vuelve al texto.', tiempo: '15 min', check: 'Explicar con palabras simples 2 reacciones' },
+        { tecnica: 'elaboracion', titulo: 'Tendencias con porqué', como: 'Predice propiedades (radio, electronegatividad) por la posición en la tabla y explica por qué cambian.', tiempo: '15 min', check: 'Explicar 3 tendencias de la tabla periódica' },
       ],
     },
     biologia: {
-      nombre: 'Biología', icono: '🧬', enfoque: 'Mucho contenido conectado: organízalo en procesos y relaciones.',
+      nombre: 'Biología', icono: '🧬', formato: 'Conceptos, procesos y experimentos',
+      enfoque: 'Mucho vocabulario y procesos: recuérdalos sin mirar y explica cómo se conectan.',
       metodos: [
-        { titulo: 'Mapas de procesos', como: 'Dibuja cada proceso (mitosis, fotosíntesis, sinapsis) como una secuencia de pasos con flechas.', porque: 'Las preguntas piden entender el orden y las causas, no solo nombres.', tiempo: '25 min', check: 'Dibujar el mapa de un proceso biológico' },
-        { titulo: 'Tarjetas con repetición espaciada', como: 'Pregunta por un lado, respuesta por el otro. Repasa hoy, en 2 días y en una semana.', porque: 'Es la forma más eficiente de fijar vocabulario y conceptos.', tiempo: '15 min', check: 'Hacer tarjetas de Biología y repasarlas en 2 días' },
-        { titulo: 'Explica con tus palabras', como: 'Cierra el cuaderno y explica un tema como si se lo contaras a un amigo. Luego revisa qué omitiste.', porque: 'Recordar sin apoyo fija mucho más que releer.', tiempo: '15 min', check: 'Explicar un tema de Biología sin mirar el cuaderno' },
-        { titulo: 'Analiza gráficos y experimentos', como: 'Practica leer gráficos y tablas de experimentos: qué variable cambia, cuál se mide y qué conclusión permiten.', porque: 'Las habilidades científicas son parte central de la PAES de Ciencias.', tiempo: '20 min', check: 'Analizar 3 gráficos o experimentos de Biología' },
+        { tecnica: 'recall', titulo: 'Dibuja el proceso de memoria', como: 'Dibuja sin mirar un proceso (mitosis, fotosíntesis, sinapsis) con sus etapas. Luego compara y corrige.', tiempo: '15 min', check: 'Dibujar de memoria un proceso biológico' },
+        { tecnica: 'espaciada', titulo: 'Vocabulario espaciado', como: 'Tarjetas con concepto y definición en tus palabras. Repasa a las 24 h, 3, 7 y 14 días.', tiempo: '10 min', check: 'Repasar tarjetas de conceptos de Biología' },
+        { tecnica: 'elaboracion', titulo: 'Analiza el experimento', como: 'En cada experimento identifica variable, control y conclusión, y explica por qué otras conclusiones no se sostienen.', tiempo: '20 min', check: 'Analizar 2 experimentos: variable, control y conclusión' },
+        { tecnica: 'feynman', titulo: 'Explícaselo a alguien', como: 'Explica el tema a alguien de tu casa sin usar términos técnicos. Anota lo que no pudiste aclarar.', tiempo: '15 min', check: 'Explicar el tema de Biología sin tecnicismos' },
       ],
     },
     ciencias: {
-      nombre: 'Ciencias', icono: '🔬', enfoque: 'Integra Biología, Física y Química: entiende la evidencia y su aplicación real.',
+      nombre: 'Ciencias Naturales', icono: '🔬', formato: 'Experimentación y conceptos',
+      enfoque: 'Observa, pregunta y explica con tus palabras lo que pasa y por qué.',
       metodos: [
-        { titulo: 'Pregunta, evidencia, conclusión', como: 'Para cada tema escribe: qué pregunta responde, qué evidencia la apoya y qué se concluye.', porque: 'Es exactamente lo que evalúan las preguntas de habilidades científicas.', tiempo: '20 min', check: 'Escribir pregunta, evidencia y conclusión de un tema' },
-        { titulo: 'Noticias científicas', como: 'Lee una noticia de ciencia o salud y relaciónala con lo visto en clases.', porque: 'Conecta contenidos con problemas reales, como pide la asignatura.', tiempo: '15 min', check: 'Relacionar una noticia científica con la materia' },
-        { titulo: 'Resumen de una página', como: 'Resume cada unidad en una sola hoja: conceptos clave, un esquema y un ejemplo.', porque: 'Sintetizar obliga a distinguir lo esencial.', tiempo: '30 min', check: 'Hacer el resumen de una página de la unidad' },
+        { tecnica: 'recall', titulo: 'Preguntas sin mirar', como: 'Escribe 5 preguntas del tema, cierra el cuaderno y respóndelas. Revisa al final.', tiempo: '15 min', check: 'Responder 5 preguntas del tema sin mirar' },
+        { tecnica: 'feynman', titulo: 'Explícalo simple', como: 'Explica el fenómeno como si se lo contaras a alguien menor. Si algo no sale, vuelve a leer esa parte.', tiempo: '10 min', check: 'Explicar el tema con palabras simples' },
+        { tecnica: 'elaboracion', titulo: 'Predice y comprueba', como: 'Antes de un experimento o video, predice qué pasará y por qué. Después compara.', tiempo: '15 min', check: 'Predecir y comprobar un experimento' },
       ],
+      basica: { tecnica: 'feynman', titulo: 'Cuéntalo en casa', como: 'Cuéntale a alguien de tu casa lo que aprendiste hoy, con un dibujo si quieres.', tiempo: '10 min', check: 'Contar en casa lo que aprendí' },
     },
     historia: {
-      nombre: 'Historia y Ciencias Sociales', icono: '🏛', enfoque: 'Ordena en el tiempo, entiende causas y consecuencias, y analiza fuentes.',
+      nombre: 'Historia y Cs. Sociales', icono: '🏛', formato: 'Memoria estructurada y análisis de fuentes',
+      enfoque: 'Más que fechas: procesos, causas, consecuencias y lectura de fuentes.',
       metodos: [
-        { titulo: 'Línea de tiempo con causas', como: 'Haz una línea de tiempo del período y anota, en cada hito, una causa y una consecuencia.', porque: 'La historia se entiende como procesos, no como fechas sueltas.', tiempo: '30 min', check: 'Armar una línea de tiempo con causas y consecuencias' },
-        { titulo: 'Análisis de fuentes', como: 'Ante cada documento o imagen responde: quién lo hizo, cuándo, para qué y qué punto de vista muestra.', porque: 'Analizar fuentes es una de las habilidades centrales evaluadas.', tiempo: '20 min', check: 'Analizar 2 fuentes históricas con las 4 preguntas' },
-        { titulo: 'Cuadro comparativo', como: 'Compara procesos o modelos (por ejemplo, dos modelos económicos) en columnas: características, actores, efectos.', porque: 'Facilita preguntas de comparación y de desarrollo.', tiempo: '25 min', check: 'Hacer un cuadro comparativo de la unidad' },
-        { titulo: 'Tarjetas de conceptos', como: 'Define con tus palabras conceptos clave (democracia, Estado, mercado) con un ejemplo de cada uno.', porque: 'Los conceptos bien definidos se aplican mejor en preguntas nuevas.', tiempo: '15 min', check: 'Definir 10 conceptos clave con un ejemplo' },
+        { tecnica: 'recall', titulo: 'Línea de tiempo de memoria', como: 'Reconstruye sin mirar la línea de tiempo de la unidad, con causas y consecuencias. Compara y completa.', tiempo: '20 min', check: 'Reconstruir de memoria la línea de tiempo' },
+        { tecnica: 'elaboracion', titulo: 'Análisis de fuentes', como: 'Para cada fuente responde: quién la escribe, cuándo, con qué intención y qué no dice.', tiempo: '20 min', check: 'Analizar 2 fuentes: autor, contexto e intención' },
+        { tecnica: 'espaciada', titulo: 'Conceptos espaciados', como: 'Tarjetas con conceptos clave (soberanía, revolución, ciudadanía). Repasa a las 24 h, 3 y 7 días.', tiempo: '10 min', check: 'Repasar tarjetas de conceptos de Historia' },
+        { tecnica: 'intercalada', titulo: 'Compara procesos', como: 'Mezcla en una sesión dos procesos parecidos (dos revoluciones, dos crisis) y anota semejanzas y diferencias.', tiempo: '25 min', check: 'Comparar dos procesos históricos' },
       ],
     },
     lenguaje: {
-      nombre: 'Lenguaje y Literatura', icono: '📖', enfoque: 'Lectura crítica y escritura: se mejora leyendo activamente y escribiendo seguido.',
+      nombre: 'Lenguaje y Comunicación', icono: '✎', formato: 'Comprensión lectora y argumentación',
+      enfoque: 'Se entrena leyendo activamente y justificando cada respuesta.',
       metodos: [
-        { titulo: 'Lectura activa', como: 'Al leer, subraya la idea principal de cada párrafo y escribe al margen qué hace el autor (argumenta, ejemplifica, compara).', porque: 'Entender la intención del texto es la base de la comprensión lectora.', tiempo: '20 min', check: 'Leer un texto marcando la idea principal de cada párrafo' },
-        { titulo: 'Localizar, interpretar, evaluar', como: 'Practica preguntas de los tres tipos y anota en cuáles fallas más.', porque: 'Son las tres habilidades que mide la prueba de Competencia Lectora.', tiempo: '30 min', check: 'Practicar preguntas de localizar, interpretar y evaluar' },
-        { titulo: 'Vocabulario en contexto', como: 'Anota palabras que no conoces con la oración donde aparecieron e infiere su significado antes de buscarlo.', porque: 'Inferir por contexto es lo que se pide en las pruebas.', tiempo: '10 min', check: 'Anotar e inferir 5 palabras nuevas de una lectura' },
-        { titulo: 'Escribe y reescribe', como: 'Escribe un párrafo argumentativo y luego mejóralo: tesis clara, un argumento y un ejemplo.', porque: 'La escritura mejora corrigiendo, no solo escribiendo.', tiempo: '20 min', check: 'Escribir y reescribir un párrafo argumentativo' },
+        { tecnica: 'elaboracion', titulo: 'Justifica la alternativa', como: 'En comprensión lectora, marca la línea del texto que respalda tu respuesta y explica por qué las otras alternativas son incorrectas.', tiempo: '25 min', check: 'Justificar con el texto 10 preguntas de comprensión' },
+        { tecnica: 'recall', titulo: 'Resumen sin mirar', como: 'Lee un texto, ciérralo y escribe la idea principal y la intención del autor en 3 líneas.', tiempo: '15 min', check: 'Resumir 2 textos sin mirarlos' },
+        { tecnica: 'intercalada', titulo: 'Textos variados', como: 'Mezcla en una sesión textos literarios, informativos y argumentativos, con sus distintos tipos de pregunta.', tiempo: '30 min', check: 'Practicar con 3 tipos de texto en una sesión' },
+        { tecnica: 'feynman', titulo: 'Explica la figura', como: 'Explica con tus palabras cada figura literaria o recurso, con un ejemplo inventado por ti.', tiempo: '15 min', check: 'Explicar 5 figuras literarias con ejemplos propios' },
       ],
-      basica: { titulo: 'Leer en voz alta', como: 'Lee 10 minutos en voz alta un cuento o noticia y cuenta después de qué se trataba.', porque: 'Mejora la fluidez y la comprensión.', tiempo: '10 min', check: 'Leer 10 minutos en voz alta y contar el resumen' },
+      basica: { tecnica: 'recall', titulo: 'Cuéntame el cuento', como: 'Después de leer, cierra el libro y cuenta qué pasó al principio, en el medio y al final.', tiempo: '10 min', check: 'Contar un cuento después de leerlo' },
     },
     ingles: {
-      nombre: 'Inglés', icono: '🗣', enfoque: 'Exposición diaria y uso activo: escuchar, repetir y producir.',
+      nombre: 'Inglés', icono: '🗣', formato: 'Vocabulario, gramática y comprensión',
+      enfoque: 'Exposición diaria y recuperación activa del vocabulario.',
       metodos: [
-        { titulo: 'Exposición diaria', como: 'Escucha 15 minutos al día algo en inglés que te guste (series, música, videos) con subtítulos en inglés.', porque: 'La constancia pesa más que sesiones largas y ocasionales.', tiempo: '15 min', check: 'Escuchar 15 minutos de inglés con subtítulos en inglés' },
-        { titulo: 'Repetición en sombra', como: 'Repite en voz alta, al mismo tiempo, frases de un audio corto imitando la pronunciación.', porque: 'Mejora la pronunciación y la comprensión auditiva.', tiempo: '10 min', check: 'Practicar repetición en sombra con un audio corto' },
-        { titulo: 'Vocabulario por temas', como: 'Aprende palabras agrupadas por tema y úsalas en 3 oraciones propias.', porque: 'Usar las palabras las fija mejor que memorizar listas.', tiempo: '15 min', check: 'Escribir 3 oraciones con vocabulario nuevo' },
-        { titulo: 'Gramática con ejemplos', como: 'Para cada estructura (tiempos verbales, condicionales) anota la regla y 3 ejemplos tuyos.', porque: 'Los ejemplos propios son más fáciles de recordar.', tiempo: '20 min', check: 'Escribir 3 ejemplos propios de la estructura gramatical' },
+        { tecnica: 'espaciada', titulo: 'Vocabulario espaciado', como: 'Tarjetas con la palabra en una frase de ejemplo. Repasa a las 24 h, 3, 7 y 14 días.', tiempo: '10 min', check: 'Repasar vocabulario de Inglés (24 h · 3 d · 7 d)' },
+        { tecnica: 'recall', titulo: 'Traduce de vuelta', como: 'Traduce frases del español al inglés sin mirar y luego corrige con el original.', tiempo: '15 min', check: 'Traducir 10 frases al inglés sin mirar' },
+        { tecnica: 'intercalada', titulo: 'Tiempos verbales mezclados', como: 'Practica oraciones mezclando pasado, presente y futuro en vez de un tiempo verbal a la vez.', tiempo: '15 min', check: 'Escribir 10 oraciones mezclando tiempos verbales' },
       ],
     },
     filosofia: {
-      nombre: 'Filosofía', icono: '💭', enfoque: 'Comprender argumentos, compararlos y defender una postura propia.',
+      nombre: 'Filosofía', icono: '💭', formato: 'Argumentación y conceptos',
+      enfoque: 'Entender argumentos y defender una postura con razones.',
       metodos: [
-        { titulo: 'Reconstruye el argumento', como: 'Escribe la tesis del autor y sus premisas en una lista numerada.', porque: 'Ver la estructura del argumento permite evaluarlo y criticarlo.', tiempo: '20 min', check: 'Reconstruir el argumento de un texto filosófico' },
-        { titulo: 'Debate contigo', como: 'Escribe una postura, luego la mejor objeción posible y tu respuesta.', porque: 'Entrena el pensamiento crítico que se evalúa en el desarrollo.', tiempo: '20 min', check: 'Escribir postura, objeción y respuesta' },
-        { titulo: 'Autores en una tabla', como: 'Compara autores en una tabla: pregunta central, respuesta y concepto clave.', porque: 'Evita confundir autores y posturas.', tiempo: '25 min', check: 'Hacer una tabla comparativa de autores' },
+        { tecnica: 'feynman', titulo: 'Explica la tesis', como: 'Explica la idea de cada autor en un párrafo simple, con un ejemplo de la vida diaria.', tiempo: '15 min', check: 'Explicar la tesis de un autor con un ejemplo' },
+        { tecnica: 'elaboracion', titulo: 'Premisas y objeciones', como: 'Separa el argumento en premisas y conclusión, y escribe una objeción y su respuesta.', tiempo: '20 min', check: 'Analizar un argumento y escribir una objeción' },
+        { tecnica: 'recall', titulo: 'Mapa de autores de memoria', como: 'Escribe sin mirar autores, conceptos clave y cómo se relacionan. Compara y completa.', tiempo: '15 min', check: 'Hacer de memoria un mapa de autores' },
       ],
     },
     programacion: {
-      nombre: 'Programación y tecnología', icono: '⌨', enfoque: 'Se aprende programando: escribe código, equivócate y depura.',
+      nombre: 'Programación y Tecnología', icono: '⌨', formato: 'Resolución práctica',
+      enfoque: 'Se aprende escribiendo código, no leyéndolo.',
       metodos: [
-        { titulo: 'Programa cada día', como: 'Resuelve un ejercicio corto diario escribiendo el código tú, sin copiar.', porque: 'La lógica de programación se construye con práctica constante.', tiempo: '20 min', check: 'Resolver un ejercicio de programación sin copiar' },
-        { titulo: 'Pseudocódigo primero', como: 'Antes de programar, escribe los pasos en español o dibuja un diagrama de flujo.', porque: 'Separar la lógica del lenguaje reduce errores.', tiempo: '10 min', check: 'Escribir el pseudocódigo antes de programar' },
-        { titulo: 'Depura explicando', como: 'Cuando algo falle, explica línea por línea qué hace el código (a alguien o a un objeto).', porque: 'Explicar el código revela dónde está el error.', tiempo: '15 min', check: 'Depurar un error explicando el código línea por línea' },
+        { tecnica: 'recall', titulo: 'Escribe sin copiar', como: 'Reescribe desde cero el ejercicio de clase sin mirar la solución. Compara al final.', tiempo: '25 min', check: 'Reescribir un ejercicio de clase sin mirar' },
+        { tecnica: 'feynman', titulo: 'Explica tu código', como: 'Explica línea por línea qué hace tu programa, en voz alta o en comentarios.', tiempo: '15 min', check: 'Explicar mi código línea por línea' },
+        { tecnica: 'intercalada', titulo: 'Problemas variados', como: 'Mezcla ejercicios de ciclos, condiciones y funciones en una misma sesión.', tiempo: '30 min', check: 'Resolver 4 ejercicios de distintos temas' },
       ],
     },
     artes: {
-      nombre: 'Artes, Música y Tecnología', icono: '🎨', enfoque: 'Práctica guiada y reflexión sobre el proceso creativo.',
+      nombre: 'Artes y Música', icono: '🎨', formato: 'Práctica y apreciación',
+      enfoque: 'Práctica corta y frecuente, más análisis de obras.',
       metodos: [
-        { titulo: 'Bitácora del proceso', como: 'Registra en fotos o notas cada etapa de tu trabajo y qué decidiste cambiar.', porque: 'Muchas evaluaciones consideran el proceso, no solo el resultado.', tiempo: '10 min', check: 'Registrar el avance del trabajo en una bitácora' },
-        { titulo: 'Práctica corta y frecuente', como: 'Practica la técnica o el instrumento 15 minutos al día en vez de una sesión larga.', porque: 'La destreza se desarrolla con repetición frecuente.', tiempo: '15 min', check: 'Practicar la técnica 15 minutos' },
-        { titulo: 'Analiza referentes', como: 'Observa una obra o pieza de referencia y anota qué recursos usa y por qué funcionan.', porque: 'Te da ideas y vocabulario para fundamentar tu trabajo.', tiempo: '15 min', check: 'Analizar una obra de referencia' },
+        { tecnica: 'espaciada', titulo: 'Práctica corta y frecuente', como: '15 minutos varios días a la semana rinden más que una sesión larga antes de la evaluación.', tiempo: '15 min', check: 'Practicar 15 minutos 3 días esta semana' },
+        { tecnica: 'elaboracion', titulo: 'Analiza una obra', como: 'Describe la obra, interpreta qué transmite y explica qué elementos lo logran.', tiempo: '15 min', check: 'Analizar una obra: describir, interpretar y explicar' },
+        { tecnica: 'recall', titulo: 'Conceptos sin mirar', como: 'Escribe de memoria los conceptos de la unidad (técnicas, estilos, elementos) y compara.', tiempo: '10 min', check: 'Repasar de memoria los conceptos de Artes' },
       ],
     },
     edfisica: {
-      nombre: 'Educación Física', icono: '🏃', enfoque: 'Constancia física y conocimiento de lo que haces y por qué.',
+      nombre: 'Educación Física', icono: '🏃', formato: 'Práctica física y reglas',
+      enfoque: 'Constancia en la práctica y claridad en reglas y fundamentos.',
       metodos: [
-        { titulo: 'Registro de entrenamiento', como: 'Anota lo que entrenas, tiempos o repeticiones, y compara semana a semana.', porque: 'Ver tu progreso motiva y muestra qué mejorar.', tiempo: '5 min', check: 'Anotar mi entrenamiento de la semana' },
-        { titulo: 'Técnica antes que intensidad', como: 'Practica despacio el gesto técnico (lanzamiento, salto, postura) antes de hacerlo rápido.', porque: 'Una buena técnica evita lesiones y mejora el rendimiento.', tiempo: '15 min', check: 'Practicar el gesto técnico de la unidad' },
-        { titulo: 'Repasa la teoría', como: 'Si hay prueba teórica, haz tarjetas con reglas, capacidades físicas y conceptos de salud.', porque: 'La teoría también se evalúa.', tiempo: '15 min', check: 'Hacer tarjetas de la teoría de Educación Física' },
+        { tecnica: 'espaciada', titulo: 'Práctica distribuida', como: 'Practica la habilidad de la evaluación en sesiones cortas durante la semana.', tiempo: '20 min', check: 'Practicar la habilidad 3 veces esta semana' },
+        { tecnica: 'recall', titulo: 'Reglas de memoria', como: 'Escribe sin mirar las reglas y fundamentos del deporte evaluado. Compara después.', tiempo: '10 min', check: 'Repasar de memoria las reglas del deporte' },
+        { tecnica: 'feynman', titulo: 'Enseña el movimiento', como: 'Explícale a un compañero la técnica del movimiento, paso a paso.', tiempo: '10 min', check: 'Explicar la técnica a un compañero' },
       ],
     },
     general: {
-      nombre: 'Cualquier asignatura', icono: '★', enfoque: 'Técnicas que funcionan en todas las materias.',
-      metodos: [
-        { titulo: 'Práctica de recuperación', como: 'Cierra el cuaderno y escribe todo lo que recuerdes del tema. Luego compara y completa.', porque: 'Recordar sin apoyo es la técnica de estudio con más evidencia.', tiempo: '15 min', check: 'Escribir lo que recuerdo del tema sin mirar' },
-        { titulo: 'Repaso espaciado', como: 'Repasa lo nuevo al día siguiente, a los 3 días y a la semana, en sesiones cortas.', porque: 'Espaciar el repaso evita olvidar lo aprendido.', tiempo: '10 min por repaso', check: 'Programar repasos al día, 3 días y una semana' },
-        { titulo: 'Bloques de foco', como: 'Estudia 25 minutos sin celular y descansa 5. Repite 3 o 4 veces.', porque: 'La atención se sostiene mejor en bloques cortos.', tiempo: '25 + 5 min', check: 'Hacer 3 bloques de 25 minutos sin celular' },
-        { titulo: 'Enseña a otro', como: 'Explícale el tema a un compañero o a alguien de tu casa.', porque: 'Enseñar muestra lo que aún no entiendes bien.', tiempo: '15 min', check: 'Explicarle el tema a otra persona' },
-      ],
+      nombre: 'Cualquier asignatura', icono: '★', formato: 'Transversal',
+      enfoque: 'Las cinco técnicas con más evidencia: sirven en todas las materias.',
+      metodos: Object.entries(TECNICAS_ESTUDIO).map(([k, t]) => ({
+        tecnica: k, titulo: t.nombre, como: t.como, porque: t.porque, tiempo: k === 'espaciada' ? '24 h · 3 d · 7 d' : '15 min',
+        check: { recall: 'Escribir lo que recuerdo del tema sin mirar', espaciada: 'Programar repasos a las 24 h, 3, 7 y 14 días',
+          feynman: 'Explicar el tema con palabras simples', intercalada: 'Hacer una sesión mezclando temas',
+          elaboracion: 'Justificar por qué cada alternativa es correcta o incorrecta' }[k],
+      })),
     },
   };
+  // Cada método hereda el "por qué funciona" de su técnica si no trae uno propio
+  for (const g of Object.values(METODOS_ESTUDIO)) {
+    for (const m of [...g.metodos, g.uni, g.basica].filter(Boolean)) m.porque ??= TECNICAS_ESTUDIO[m.tecnica]?.porque || '';
+  }
   /** Categoría de materia (Importador.categoriasDe) → grupo de métodos. */
   const GRUPO_METODOS = {
     matematica: 'matematica', fisica: 'fisica', quimica: 'quimica', biologia: 'biologia', ciencias: 'ciencias',
@@ -2550,7 +2587,7 @@ const REF = (() => {
     NOVEDADES,
     AREAS_CURRICULO, AREA_OTRAS,
     FEEDBACK_NOTA, FRASES, CITAS, FRASES_UNI, GUIA_EVALUACION, PAES,
-    FERIADOS_CHILE, HITOS_REFERENCIA, VERSION_FECHAS, FUENTE_FECHAS, ESCALAS_PAES, PRUEBAS_ENSAYO, UNIVERSIDADES_INFO, TONO_ETAPA, METODOS_ESTUDIO, GRUPO_METODOS,
+    FERIADOS_CHILE, HITOS_REFERENCIA, VERSION_FECHAS, FUENTE_FECHAS, ESCALAS_PAES, PRUEBAS_ENSAYO, UNIVERSIDADES_INFO, TONO_ETAPA, METODOS_ESTUDIO, GRUPO_METODOS, TECNICAS_ESTUDIO,
     VERSION, NIVELES_ESCOLARES, NIVELES_TP, AÑOS_MEDIA, ESPECIALIDADES_TP,
     seccionesCurriculo, UNIVERSIDADES, MALLAS, construirMalla,
     NEM_OFICIAL, NEM_FUENTE, GRUPOS_NEM, URL_NEM,

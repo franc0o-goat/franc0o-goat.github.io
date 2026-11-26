@@ -585,7 +585,7 @@ function render() {
 
 const esMovil = () => matchMedia('(max-width: 860px)').matches;
 // Abiertos por defecto: lo principal (evaluaciones, camino). Plegados: lo que se consulta de vez en cuando.
-const plegados = new Set(matchMedia('(max-width: 860px)').matches ? ['decimas', 'checklist', 'guia', 'camino', 'promocion', 'consolidado', 'catalogo'] : []);
+const plegados = new Set(matchMedia('(max-width: 860px)').matches ? ['decimas', 'checklist', 'guia', 'camino', 'promocion', 'consolidado', 'catalogo'] : ['decimas']);
 
 /** Marca cada bloque plegable según lo que la persona abrió o cerró (solo tiene efecto visual en el celular). */
 function aplicarPlegables() {
@@ -1048,16 +1048,26 @@ function renderEstudio() {
   const G = REF.METODOS_ESTUDIO[grupo] || REF.METODOS_ESTUDIO.general;
   const chipsAsig = propias.map(a => `<button class="chip-prueba ${asigSel?.id === a.id ? 'activa' : ''}" data-action="estudio-sel" data-asig="${a.id}">${esc(a.nombre)}</button>`).join('');
   const chipsGrupo = Object.entries(REF.METODOS_ESTUDIO).map(([k, g]) => `<button class="chip-prueba ${!asigSel && grupo === k ? 'activa' : ''}" data-action="estudio-sel" data-grupo="${k}">${g.icono} ${esc(g.nombre)}</button>`).join('');
+  // v23: cada tarjeta indica la técnica con evidencia que aplica; el botón es corto y queda dentro de la tarjeta
+  const T = REF.TECNICAS_ESTUDIO || {};
   const tarjetas = metodosDe(grupo).map(m => {
     const ya = asigSel && (asigSel.checklist || []).some(c => Calc.claveAsignatura(c.texto) === Calc.claveAsignatura(m.check));
+    const tec = T[m.tecnica];
     return `
       <article class="metodo ${m.destacado ? 'destacado' : ''}">
-        <header><h3>${esc(m.titulo)}</h3><span class="chip">${esc(m.tiempo)}</span></header>
-        <p>${esc(m.como)}</p>
+        <header><h3>${esc(m.titulo)}</h3><span class="chip metodo-tiempo">${esc(m.tiempo)}</span></header>
+        ${tec ? `<p class="metodo-tecnica" title="${esc(tec.corto)}">${esc(tec.nombre)}</p>` : ''}
+        <p class="metodo-como">${esc(m.como)}</p>
         <p class="metodo-porque"><strong>Por qué funciona:</strong> ${esc(m.porque)}</p>
-        ${asigSel ? `<button class="btn sm ${ya ? 'ghost' : ''}" data-action="estudio-check" data-asig="${asigSel.id}" data-check="${esc(m.check)}" ${ya ? 'disabled' : ''}>${ya ? '✓ En tu checklist' : `+ Checklist de ${esc(asigSel.nombre)}`}</button>` : ''}
+        ${asigSel ? `<button class="btn sm metodo-btn ${ya ? 'ghost' : ''}" data-action="estudio-check" data-asig="${asigSel.id}" data-check="${esc(m.check)}" ${ya ? 'disabled' : ''} title="${ya ? 'Ya está en el checklist' : `Agregar al checklist de ${esc(asigSel.nombre)}`}">${ya ? '✓ En tu checklist' : '+ Agregar al checklist'}</button>` : ''}
       </article>`;
   }).join('');
+  const transversales = Object.values(T).map(t => `
+      <article class="metodo">
+        <header><h3>${esc(t.nombre)}</h3><span class="chip metodo-tiempo">${esc(t.corto)}</span></header>
+        <p class="metodo-como">${esc(t.como)}</p>
+        <p class="metodo-porque"><strong>Por qué funciona:</strong> ${esc(t.porque)}</p>
+      </article>`).join('');
   $('#vista-estudio').innerHTML = `
     <div class="panel estudio-cab">
       <div class="seccion-cab"><h2>Métodos de estudio</h2><span class="chip">${esc(tono().nombre)}</span></div>
@@ -1067,13 +1077,14 @@ function renderEstudio() {
     </div>
     <div class="panel estudio-materia">
       <div class="seccion-cab"><h2><span aria-hidden="true">${G.icono}</span> ${esc(asigSel ? asigSel.nombre : G.nombre)}</h2>${asigSel ? `<span class="chip info">Técnicas de ${esc(G.nombre)}</span>` : ''}</div>
-      <p class="estudio-enfoque">${esc(G.enfoque)}</p>
+      <p class="estudio-enfoque">${G.formato ? `<strong>${esc(G.formato)}.</strong> ` : ''}${esc(G.enfoque)}</p>
       <div class="metodos-grid">${tarjetas}</div>
     </div>
-    <div class="panel estudio-generales">
-      <div class="seccion-cab"><h2>★ Sirven para todo</h2></div>
-      <div class="metodos-grid compacto">${REF.METODOS_ESTUDIO.general.metodos.map(m => `<article class="metodo"><header><h3>${esc(m.titulo)}</h3><span class="chip">${esc(m.tiempo)}</span></header><p>${esc(m.como)}</p></article>`).join('')}</div>
-    </div>`;
+    ${grupo === 'general' ? '' : `<div class="panel estudio-generales">
+      <div class="seccion-cab"><h2>★ Sirven para todo</h2><span class="chip">Con evidencia</span></div>
+      <p class="estudio-enfoque">Las cinco técnicas que más ayudan a recordar y entender, en cualquier materia.</p>
+      <div class="metodos-grid compacto">${transversales}</div>
+    </div>`}`;
 }
 
 /* ---------- Universidades (v14): sitios oficiales con filtro rápido ---------- */
@@ -1500,7 +1511,7 @@ function renderPeriodos() {
     </div>
     <div class="periodos-acciones">
       ${esConsolidado() ? '' : `
-        <button class="btn ghost sm" data-action="menu-periodo" data-id="${p.periodoActivo}" aria-haspopup="menu" title="Renombrar o mover este período (también con clic derecho sobre él)">⋯ Período</button>
+        <button class="btn ghost sm" data-action="menu-periodo" data-id="${p.periodoActivo}" aria-haspopup="menu" title="Renombrar o mover este período (también con clic derecho sobre él)"><svg class="ico-periodo" viewBox="0 0 24 24" width="15" height="15" aria-hidden="true"><path fill="currentColor" d="M7 2h2v2h6V2h2v2h2a2 2 0 0 1 2 2v13a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2V2ZM5 9v10h14V9H5Zm2 2h4v4H7v-4Z"/></svg> Período</button>
         <button class="btn ghost sm peligro" data-action="eliminar-periodo" title="Elimina el período y sus asignaturas (podrás deshacerlo unos segundos)">Eliminar período</button>`}
       ${accionContexto}
       <button class="btn sm primario" data-action="abrir-foto" title="Leer notas desde una foto, un PDF o texto pegado. Siempre revisas antes de guardar">Importar notas</button>
@@ -1616,7 +1627,7 @@ function htmlProgreso(visibles, top) {
   const pesoTotal = visibles.reduce((s, a) => s + a.pesos.total, 0);
   const pct = pesoTotal > 0 ? Math.round((visibles.reduce((s, a) => s + a.pesos.calificado, 0) / pesoTotal) * 100) : null;
   return `
-    ${pct !== null ? `<div class="progreso-barra" role="img" aria-label="Has rendido el ${pct}% del peso total"><span style="width:${pct}%"></span></div>` : ''}
+    ${pct !== null ? `<div class="progreso-fila"><div class="progreso-barra" role="img" aria-label="Has rendido el ${pct}% del peso total"><span style="width:${pct}%"></span></div><span class="progreso-pct num">${pct}% rendido</span></div>` : ''}
     ${htmlProgresoCuerpo(visibles, top)}`;
 }
 
@@ -1625,7 +1636,7 @@ function htmlProgresoCuerpo(visibles, top) {
   const muchas = visibles.length > 4;
   const etiquetaAsig = a => `${esc(a.asig.nombre)}${esConsolidado() ? ` <small>${esc(abreviarPeriodo(nombrePeriodo(a.asig.periodoId)))}</small>` : ''}`;
   return `
-    <p class="progreso-texto">${mensajeProgreso(visibles, top)}</p>
+    ${(() => { const puntos = mensajeProgreso(visibles, top, true); return puntos.length ? `<ul class="progreso-puntos">${puntos.map(t => `<li>${t}</li>`).join('')}</ul>` : ''; })()}
     ${muchas ? `
       <div class="progreso-chips">${grupos.map(g => `<span class="chip ${g.clase}" title="${esc(g.items.map(a => a.asig.nombre).join(', '))}">${g.icono} ${g.items.length} ${esc(g.etiqueta.toLowerCase())}</span>`).join('')}</div>
       <details id="progreso-detalle" class="progreso-detalle" ${progresoAbierto ? 'open' : ''}>
@@ -1655,8 +1666,8 @@ function lineaMotivacion() {
 }
 
 /** Mensaje de progreso construido SOLO con datos reales (máx. 3 frases), tono constructivo. */
-function mensajeProgreso(analisis, top) {
-  if (!analisis.length) return 'Agrega asignaturas a este período (o cárgalas desde el currículum o una foto) para ver tu progreso.';
+function mensajeProgreso(analisis, top, comoLista = false) {
+  if (!analisis.length) return comoLista ? ['Agrega asignaturas para ver tu progreso.'] : 'Agrega asignaturas a este período (o cárgalas desde el currículum o una foto) para ver tu progreso.';
   const E = escala();
   const frases = [];
   const desglose = desglosePeriodos(analisis);
@@ -1664,7 +1675,8 @@ function mensajeProgreso(analisis, top) {
   const pesoTotal = analisis.reduce((s, a) => s + a.pesos.total, 0);
   const pesoRendido = analisis.reduce((s, a) => s + a.pesos.calificado, 0);
   // Con varios períodos el % rendido se muestra por período (barras), no como un total que mezcla semestres
-  if (pesoTotal > 0 && !varios) frases.push(`Has rendido el ${Math.round((pesoRendido / pesoTotal) * 100)}% del peso total de tus evaluaciones${esConsolidado() ? '' : ` de ${esc(nombrePeriodo(perfil().periodoActivo))}`}.`);
+  // En modo lista el % ya va junto a la barra
+  if (pesoTotal > 0 && !varios && !comoLista) frases.push(`Has rendido el ${Math.round((pesoRendido / pesoTotal) * 100)}% del peso total de tus evaluaciones${esConsolidado() ? '' : ` de ${esc(nombrePeriodo(perfil().periodoActivo))}`}.`);
 
   const aseguradas = analisis.filter(a => a.estado === 'asegurada' || a.estado === 'lograda');
   const encaminadas = analisis.filter(a => a.estado === 'encaminado');
@@ -1694,7 +1706,7 @@ function mensajeProgreso(analisis, top) {
   }
   const sinPesos = analisis.filter(a => a.estado === 'sin-pesos');
   if (sinPesos.length && frases.length < 3) frases.push(sinPesos.length > 3 ? `Define la ponderación en ${sinPesos.length} asignaturas para calcular su camino.` : `Define la ponderación en ${nombres(sinPesos)} para calcular su camino.`);
-  return frases.slice(0, 3).join(' ');
+  return comoLista ? frases.slice(0, 3) : frases.slice(0, 3).join(' ');
 }
 
 function nombres(lista) {
@@ -1749,7 +1761,9 @@ function renderMetaGeneral(visibles) {
   } else {
     switch (plan.estado) {
       case 'alcanzable':
-        resumen = `Para un ${G} necesitas, en promedio, un <strong>${fmtNec(plan.x)}</strong> en lo que queda de cada asignatura abierta.`;
+        resumen = plan.x < escala().aprobacion - Calc.EPS
+          ? `¡Vas bien! Para un ${G} te basta con <strong>aprobar</strong> lo que queda en cada asignatura abierta.`
+          : `Para un ${G} necesitas, en promedio, un <strong>${fmtNec(plan.x)}</strong> en lo que queda de cada asignatura abierta.`;
         break;
       case 'asegurada':
         resumen = `Tu meta de ${G} ya está asegurada aunque saques la nota mínima en todo lo pendiente.`;
@@ -1988,7 +2002,7 @@ function htmlMetricas(a) {
     <div class="metricas">
       <div class="metrica"><div class="etiqueta" title="Solo notas reales registradas (sin décimas extra)">Promedio actual</div><div class="valor num ${claseActual}">${fmt(a.actual)}</div>${(() => { const d = Calc.impactoDecimas(a, E); return d && d.obtenidas && a.actual !== null ? `<div class="con-decimas" title="Promedio + décimas extra obtenidas">con décimas: <strong>${fmt(d.actualConObtenidas)}</strong></div>` : ''; })()}</div>
       <div class="metrica"><div class="etiqueta">Meta</div><div class="valor num">${meta === null ? '<small class="sin-meta-txt">Defínela arriba</small>' : fmt(meta)}</div></div>
-      <div class="metrica"><div class="etiqueta">Necesitas en lo pendiente</div><div class="valor num ${claseNec} ${a.necesaria !== null && a.necesaria < escala().aprobacion ? 'valor-texto' : ''}">${textoNecesaria(a.necesaria)}</div></div>
+      <div class="metrica"><div class="etiqueta">Necesitas en lo pendiente</div><div class="valor num ${claseNec} ${/^\d/.test(textoNecesaria(a.necesaria)) ? '' : 'valor-texto'}">${textoNecesaria(a.necesaria)}</div></div>
       <div class="metrica"><div class="etiqueta">Avance evaluado</div><div class="valor num">${Math.round(a.avance * 100)}%</div></div>
     </div>
     <div class="escala-barra" aria-hidden="true">
@@ -2187,6 +2201,8 @@ function textoAprobacion(a) {
   if (a.finalMinimo === null) return '';
   if (a.finalMinimo >= E.aprobacion) return `La aprobación (${E.aprobacion}) ya está asegurada pase lo que pase.`;
   const nA = a.necesariaAprobar;
+  // v23: un mínimo bajo la nota de aprobación no se muestra como cifra (sería un valor trivial)
+  if (nA !== null && nA < E.aprobacion - Calc.EPS) return `Vas bien: aprobando lo que queda, apruebas el ramo.`;
   if (nA !== null && nA <= E.max) return `Para aprobar (${E.aprobacion}) te basta un ${fmtNec(nA)} en lo pendiente.`;
   return '';
 }
@@ -2297,7 +2313,7 @@ function htmlRealista(a) {
       clase = 'ok';
       titulo = 'Vas bien encaminado';
       cuerpo = a.actual === null
-        ? `<p>Aún no tienes notas, y la meta pide ${fmtNec(a.necesaria)}: alcanzable sin exigir más que la nota de aprobación.</p>`
+        ? (a.necesaria < E.aprobacion ? `<p>Aún no tienes notas: con <strong>aprobar</strong> cada evaluación cumples tu meta. Considera subirla.</p>` : `<p>Aún no tienes notas, y la meta pide ${fmtNec(a.necesaria)}: alcanzable con constancia.</p>`)
         : a.necesaria < E.aprobacion
           ? `<p>Hoy promedias <strong>${fmt(a.actual)}</strong>: con <strong>aprobar</strong> lo que queda cumples tu meta. ¡Bien ahí! Considera subir tu meta.</p>`
           : `<p>Hoy promedias <strong>${fmt(a.actual)}</strong> y te basta un <strong>${fmtNec(a.necesaria)}</strong>. Tienes ${fmt(a.actual - a.necesaria)} puntos de margen.</p>`;
@@ -2324,6 +2340,7 @@ function htmlRealista(a) {
       const nA = a.necesariaAprobar;
       extra += `<p class="nota-aviso">${nA <= E.min ? `Aprobación (${E.aprobacion}) asegurada.`
         : nA > E.max ? `Con lo que queda no alcanza para el ${E.aprobacion}; consulta opciones de recuperación con tu profesor.`
+        : nA < E.aprobacion - Calc.EPS ? `Aprobando lo que queda, apruebas el ramo.`
         : `Para aprobar (${E.aprobacion}) necesitas ${fmtNec(nA)} en lo pendiente.`}</p>`;
     }
   }
@@ -2439,7 +2456,7 @@ function consejosGuia(foco, asigId = '') {
   const rnd = aleatorioConSemilla(Calc.indiceDiario(`${semillaConsejos}|${asigId}|${rotacionConsejos[asigId] || 0}`, 2 ** 31));
   const especificos = mezclar(todos.filter(c => c.para.includes(foco)), rnd).slice(0, 2);
   const otros = mezclar(todos.filter(c => !especificos.includes(c) && (!c.para.length || c.para.includes(foco))), rnd);
-  return [...especificos, ...otros].slice(0, 5);
+  return [...especificos, ...otros].slice(0, 3);
 }
 
 const enChecklist = (asig, texto) => (asig.checklist || []).some(i => Importador.normalizar(i.texto) === Importador.normalizar(texto));
@@ -2468,9 +2485,10 @@ function htmlGuia(a) {
   const items = consejos.map(c => {
     const ya = enChecklist(asig, c.check);
     return `
-      <li>
-        <div><strong>${esc(c.titulo)}.</strong> ${esc(c.texto)}</div>
-        <button class="btn sm ${ya ? 'ghost' : ''}" data-action="guia-check" data-consejo="${c.id}" ${ya ? 'disabled' : ''}>${ya ? '✓ En tu checklist' : '+ Checklist'}</button>
+      <li class="guia-tarjeta ${ya ? 'hecha' : ''}">
+        <strong>${esc(c.titulo)}</strong>
+        <p>${esc(c.texto)}</p>
+        <button class="guia-mini" data-action="guia-check" data-consejo="${c.id}" ${ya ? 'disabled' : ''} title="${ya ? 'Ya está en tu checklist' : 'Agregar este consejo al checklist'}" aria-label="${ya ? 'Ya está en tu checklist' : `Agregar al checklist: ${esc(c.titulo)}`}">${ya ? '✓' : '+'}</button>
       </li>`;
   }).join('');
   const faltan = consejos.filter(c => !enChecklist(asig, c.check)).length;
@@ -2478,7 +2496,7 @@ function htmlGuia(a) {
     <div class="seccion-cab"><h2>Preparación para tu próxima evaluación</h2>
       <div class="cab-derecha">
         <button class="btn ghost sm" data-action="otros-consejos" title="Ver otros consejos">Otros consejos ↻</button>
-        ${faltan ? `<button class="btn ghost sm" data-action="guia-check-todas">Enviar todas al checklist</button>` : ''}
+        ${faltan ? `<button class="btn sm" data-action="guia-check-todas">+ Todo al checklist</button>` : ''}
       </div></div>
     <p class="guia-tono">${esc(tono().guia)} <button class="enlace" data-action="ir-metodos" data-asig="${asig.id}">Ver métodos para ${esc(asig.nombre)}</button></p>
     <div class="guia-enfoque ${foco}">
@@ -2487,7 +2505,7 @@ function htmlGuia(a) {
       ${lineaProxima}
       ${lineaCarrera}
     </div>
-    <ul class="guia-lista">${items}</ul>`;
+    <ul class="guia-lista guia-tarjetas">${items}</ul>`;
 }
 
 /* ---------- Promoción escolar (orientativa) ---------- */
