@@ -2308,3 +2308,86 @@ input[inputmode="decimal"], input[inputmode="numeric"], input[type="number"] {
 @media (max-width: 860px) {
   .sidebar .logo { width: 38px; height: 31px; }
 }
+
+/* =========================================================
+ * v20 · Barra lateral como columna de íconos + panel desplegable (861–1180 px),
+ *       Métodos de estudio, líneas de tono por etapa y nota necesaria en texto
+ * ========================================================= */
+.btn-menu-lateral { display: none; }
+.sb-fondo { position: fixed; inset: 0; z-index: 29; background: rgba(5, 4, 9, .55); -webkit-backdrop-filter: blur(2px); backdrop-filter: blur(2px); }
+
+@media (min-width: 861px) and (max-width: 1180px) {
+  :root { --sidebar-w: 76px; }
+  .btn-menu-lateral {
+    display: grid; place-items: center; width: 44px; height: 40px; margin: 0 auto; border: 0; border-radius: 10px; cursor: pointer;
+    background: var(--surface-2); color: var(--text); font-size: 1.15rem;
+  }
+  .btn-menu-lateral:hover { background: var(--primary-soft); }
+  /* Columna de íconos (estado cerrado) */
+  body:not(.sb-abierta) .sidebar { padding: 14px 8px 12px; gap: 10px; align-items: center; overflow: visible; }
+  body:not(.sb-abierta) .sidebar .marca { justify-content: center; padding: 0; }
+  body:not(.sb-abierta) .sidebar .marca-texto,
+  body:not(.sb-abierta) .sidebar .sb-perfil,
+  body:not(.sb-abierta) .sidebar .sb-seccion,
+  body:not(.sb-abierta) .sidebar .contexto-movil { display: none; }
+  body:not(.sb-abierta) .sidebar .logo { width: 40px; height: 33px; }
+  body:not(.sb-abierta) .btn-ir-notas { width: 48px; height: 44px; padding: 0; justify-content: center; border-radius: 12px; }
+  body:not(.sb-abierta) .btn-ir-notas span { display: none; }
+  body:not(.sb-abierta) .sidebar .tabs { width: 100%; }
+  body:not(.sb-abierta) .sidebar .tab { justify-content: center; padding: 10px 0; }
+  body:not(.sb-abierta) .sidebar .tab > span,
+  body:not(.sb-abierta) .sidebar .tab .pill { display: none; }
+  body:not(.sb-abierta) .sidebar .tab .tab-icono { width: 22px; height: 22px; }
+  body:not(.sb-abierta) .sidebar .tab.activa::after { left: -8px; }
+  body:not(.sb-abierta) .sb-atajos { width: 100%; padding-top: 8px; }
+  body:not(.sb-abierta) .sb-atajo { justify-content: center; padding: 8px 0; }
+  body:not(.sb-abierta) .sb-atajo-txt { display: none; }
+  body:not(.sb-abierta) .sb-pie { flex-direction: column; align-items: center; gap: 6px; width: 100%; }
+  body:not(.sb-abierta) .sb-pie > * { order: 0 !important; margin: 0 !important; flex: none !important; }
+  body:not(.sb-abierta) .sb-pie .btn-apoyar { width: 40px; height: 36px; padding: 0; justify-content: center; border-radius: 10px; }
+  body:not(.sb-abierta) .sb-pie .btn-apoyar .txt-apoyar { display: none !important; }
+  body:not(.sb-abierta) .sb-pie .menu > summary.btn { padding: 4px 6px; font-size: .74rem; }
+  /* Títulos al pasar el cursor por los íconos (las etiquetas están ocultas) */
+  body:not(.sb-abierta) .sidebar [data-vista], body:not(.sb-abierta) .sb-atajo { position: relative; }
+  /* Panel desplegado: el menú completo encima del contenido, con sombra y fondo oscurecido */
+  body.sb-abierta .sidebar { width: 264px; z-index: 30; box-shadow: 24px 0 60px -20px rgba(0, 0, 0, .7); overflow-y: auto; }
+  body.sb-abierta .btn-menu-lateral { margin: 0 0 0 auto; }
+  body.sb-abierta .btn-menu-lateral span::before { content: "✕"; }
+  body.sb-abierta .btn-menu-lateral span { font-size: 0; }
+  body.sb-abierta .btn-menu-lateral span::before { font-size: 1rem; }
+  /* Los paneles del pie (Más, Novedades, Apoyar) salen hacia el contenido, sin cortarse */
+  body:not(.sb-abierta) .sidebar .panel-flotante, body:not(.sb-abierta) .sidebar .menu-lista { left: calc(100% + 6px); bottom: 0; width: 280px; }
+}
+
+/* --- Tono por etapa --- */
+.progreso-tono { margin-top: 8px; font-size: .78rem; color: var(--muted); line-height: 1.4; }
+.guia-tono { font-size: .86rem; color: var(--muted); margin: -2px 0 10px; }
+.valor.valor-texto { font-size: 1.05rem !important; line-height: 1.25; }
+
+/* --- Métodos de estudio --- */
+.vista-estudio { display: grid; gap: 14px; }
+.vista-estudio > * { min-width: 0; }
+.estudio-etq { font-family: var(--fuente-ui); font-size: .8rem; font-weight: 700; color: var(--muted); margin: 10px 0 6px; }
+.estudio-otras { margin-top: 10px; }
+.estudio-otras summary { cursor: pointer; font-family: var(--fuente-ui); font-weight: 700; font-size: .84rem; color: var(--primary); }
+.estudio-otras .chips-pruebas { margin-top: 8px; }
+.estudio-materia { border-top: 3px solid var(--primary); }
+.estudio-enfoque { color: var(--muted); margin-bottom: 12px; max-width: 70ch; }
+.metodos-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 10px; }
+.metodo {
+  display: grid; gap: 6px; align-content: start; min-width: 0; padding: 12px 14px; border-radius: var(--radius-sm);
+  background: var(--surface-2); border: 1px solid var(--border);
+}
+.metodo.destacado { border-color: color-mix(in srgb, var(--chispa) 50%, transparent); background: linear-gradient(160deg, var(--chispa-soft), var(--surface-2) 70%); }
+.metodo header { display: flex; justify-content: space-between; align-items: flex-start; gap: 8px; }
+.metodo h3 { font-size: .95rem; margin: 0; }
+.metodo p { font-size: .86rem; line-height: 1.45; }
+.metodo-porque { color: var(--muted); font-size: .8rem !important; }
+.metodo .btn { justify-self: start; margin-top: 2px; }
+.metodos-grid.compacto .metodo { padding: 10px 12px; }
+@media (max-width: 860px) {
+  .metodos-grid { grid-template-columns: 1fr; gap: 8px; }
+  .vista-estudio { gap: 10px; }
+}
+/* El texto de cada atajo no hereda el ancho ni el color de su ícono */
+.sb-atajo span.sb-atajo-txt { width: auto; color: inherit; font-weight: inherit; text-align: left; }

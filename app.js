@@ -162,7 +162,7 @@ function normalizarStore(s) {
   if ((Number(r.config.versionCatalogo) || 1) < REF.VERSION_CATALOGO) r.catalogoCortes = migrarCatalogo(r.catalogoCortes, Number(r.config.versionCatalogo) || 1);
   r.config.versionCatalogo = REF.VERSION_CATALOGO;
   if (r.vista === 'nem') r.vista = 'admision';
-  if (!['notas', 'admision', 'paes', 'universidades'].includes(r.vista)) r.vista = 'notas';
+  if (!['notas', 'admision', 'paes', 'universidades', 'estudio'].includes(r.vista)) r.vista = 'notas';
   return r;
 }
 
@@ -300,6 +300,22 @@ const opts = (lista, sel) => lista.map(([v, t]) => `<option value="${esc(v)}" ${
 
 const dec = () => (escala().max - escala().min > 20 ? 1 : 2);
 const fmt = (x, d = dec()) => (x === null || x === undefined || !Number.isFinite(x) ? '—' : Calc.redondear(x, d).toFixed(d));
+/**
+ * (v20) Nota necesaria "práctica": nunca se sugiere una nota absurda.
+ *  - ≤ nota mínima → la meta ya está asegurada (no se muestra un “1.0”).
+ *  - bajo la nota de aprobación → basta con aprobar (no se sugiere un “2.3”).
+ *  - si no, la nota real redondeada hacia arriba a 1 decimal.
+ * corto = para celdas y títulos; largo = para frases.
+ */
+function textoNecesaria(v, largo = false) {
+  const E = escala();
+  if (v === null || v === undefined || !Number.isFinite(v)) return '—';
+  if (v <= E.min + Calc.EPS) return largo ? 'nada más: tu meta ya está asegurada' : '¡Meta asegurada!';
+  if (v < E.aprobacion - Calc.EPS) return largo ? `aprobar (${fmt(E.aprobacion, 1)})` : `Basta aprobar (${fmt(E.aprobacion, 1)})`;
+  if (v > E.max + Calc.EPS) return largo ? 'más que la nota máxima' : 'Fuera de alcance';
+  return Calc.redondearArriba(v, 1).toFixed(1);
+}
+
 /** La nota necesaria se redondea hacia arriba a 1 decimal (nunca subestima lo requerido). */
 const fmtNec = x => (x === null || x === undefined || !Number.isFinite(x) ? '—' : Calc.redondearArriba(x, 1).toFixed(1));
 const fmtPct = x => `${Calc.redondear(x, 2)}%`;
@@ -526,7 +542,9 @@ function render() {
     const enAdmision = store.vista === 'admision';
     const enPaes = store.vista === 'paes';
     const enUni = store.vista === 'universidades';
-    $('#vista-notas').hidden = enAdmision || enPaes || enUni;
+    const enEstudio = store.vista === 'estudio';
+    $('#vista-notas').hidden = enAdmision || enPaes || enUni || enEstudio;
+    $('#vista-estudio').hidden = !enEstudio;
     $('#vista-admision').hidden = !enAdmision;
     $('#vista-paes').hidden = !enPaes;
     $('#vista-universidades').hidden = !enUni;
@@ -538,6 +556,7 @@ function render() {
     if (enAdmision) { $('#vista-admision').dataset.sub = store.subvista === 'cortes' ? 'cortes' : 'nem'; renderAdmision(); seguro(aplicarPlegables); return; }
     if (enPaes) { renderPaes(); return; }
     if (enUni) { renderUniversidades(); return; }
+    if (enEstudio) { renderEstudio(); return; }
 
     const todos = p.asignaturas.map(a => Calc.analizarAsignatura(a, p.escala));
     const visibles = esConsolidado() ? todos : todos.filter(a => a.asig.periodoId === p.periodoActivo);
@@ -767,7 +786,7 @@ function renderWidgetDia(visibles, prioridades) {
   const pend = top?.asig.evaluaciones.find(ev => !Calc.estaCompleta(ev));
   const filas = [];
   if (hito) filas.push(`<li class="wd-hito"><span class="wd-num">${hito.dias}</span><span><strong>${esc(hito.nombre)}</strong><small>${hito.dias === 0 ? 'es hoy' : `${hito.dias === 1 ? 'falta 1 día' : `faltan ${hito.dias} días`}`} · ${fechaLegible(hito.fecha)}</small></span></li>`);
-  if (pend) filas.push(`<li><span class="wd-icono" aria-hidden="true">✎</span><span><strong>Próxima: ${esc(pend.nombre)}</strong><small>${esc(top.asig.nombre)}${top.necesaria !== null && ['encaminado', 'subir-ritmo'].includes(top.estado) ? ` · apunta a ${fmtNec(Calc.limitar(top.necesaria, escala().min, escala().max))}` : ''}</small></span></li>`);
+  if (pend) filas.push(`<li><span class="wd-icono" aria-hidden="true">✎</span><span><strong>Próxima: ${esc(pend.nombre)}</strong><small>${esc(top.asig.nombre)}${top.necesaria !== null && ['encaminado', 'subir-ritmo'].includes(top.estado) ? (top.necesaria < escala().aprobacion ? ' · con aprobar te basta' : ` · apunta a ${fmtNec(Calc.limitar(top.necesaria, escala().min, escala().max))}`) : ''}</small></span></li>`);
   if (feriado) filas.push(`<li><span class="wd-icono" aria-hidden="true">☀</span><span><strong>${esc(feriado.nombre)}</strong><small>Feriado · ${textoDias(feriado.dias)} (${fechaLegible(feriado.fecha)})</small></span></li>`);
   if (!hito && sinFecha) filas.push(`<li><span class="wd-icono" aria-hidden="true">◷</span><span><strong>${esc(sinFecha.nombre)}</strong><small>Sin fecha: <button class="enlace" data-action="abrir-fechas">defínela</button></small></span></li>`);
   $('#widget-dia').innerHTML = `
@@ -944,6 +963,94 @@ function htmlEscalas() {
       ${prueba === 'm2' && esc0.notaM2 ? `<p class="nota-aviso">${esc(esc0.notaM2)}</p>` : ''}
       <p class="nota-aviso">Correctas → puntaje PAES. Tabla oficial: ${esc(esc0.etiqueta.replace(/^DEMRE · /, ''))}. <a href="${esc0.url}" target="_blank" rel="noopener noreferrer">demre.cl ↗</a></p>
       <button class="btn sm" data-action="paes-sub" data-sub="ensayos">Registrar un ensayo con esta tabla</button>
+    </div>`;
+}
+
+/* ---------- Barra lateral desplegable en pantallas medianas (v20) ---------- */
+
+/** Entre 861 y 1.180 px la barra es una columna de íconos; ☰ la despliega encima del contenido. */
+function alternarSidebar(abrir = !document.body.classList.contains('sb-abierta')) {
+  document.body.classList.toggle('sb-abierta', abrir);
+  $('#sb-fondo').hidden = !abrir;
+  $('.btn-menu-lateral')?.setAttribute('aria-expanded', String(abrir));
+  if (abrir) $('#sidebar .tab.activa')?.focus();
+}
+const cerrarSidebar = () => { if (document.body.classList.contains('sb-abierta')) alternarSidebar(false); };
+// Elegir una sección, pulsar Esc o agrandar la ventana cierra el panel desplegado
+document.addEventListener('click', e => { if (e.target.closest?.('#sidebar .tab, #sidebar .sb-atajo')) cerrarSidebar(); });
+document.addEventListener('keydown', e => { if (e.key === 'Escape') cerrarSidebar(); });
+addEventListener('resize', () => { if (innerWidth > 1180 || innerWidth <= 860) cerrarSidebar(); });
+
+/* ---------- Tono según la etapa del perfil (v20) ---------- */
+
+/** basica (1°–6° básico) · transicion (7° básico – 2° medio) · admision (3°–4° medio) · uni */
+function etapaPerfil(p = perfil()) {
+  if (p.modalidad === 'uni') return 'uni';
+  const k = String(p.nivel || '');
+  if (/^[1-6]B$/.test(k)) return 'basica';
+  if (k === '3M' || k === '4M') return 'admision';
+  return 'transicion';
+}
+const tono = (p = perfil()) => REF.TONO_ETAPA[etapaPerfil(p)];
+
+/* ---------- Métodos de estudio por materia (v20) ---------- */
+
+let estudioSel = null;   // { asig: id } o { grupo: clave }
+/** Grupo de métodos de una asignatura según su nombre (Matemática, Física, Historia…). */
+function grupoMetodos(nombre) {
+  const cats = [...Importador.categoriasDe(nombre)];
+  const tema = Importador.inferirTema([nombre])?.categoria;
+  if (tema) cats.unshift(tema);
+  for (const c of cats) if (REF.GRUPO_METODOS[c]) return REF.GRUPO_METODOS[c];
+  if (/ciudadan|sociedad|geograf|econom/i.test(nombre)) return 'historia';
+  return 'general';
+}
+/** Métodos del grupo, con la variante de la etapa (universidad o básica) al principio. */
+function metodosDe(grupo) {
+  const g = REF.METODOS_ESTUDIO[grupo] || REF.METODOS_ESTUDIO.general;
+  const etapa = etapaPerfil();
+  const extra = etapa === 'uni' ? g.uni : etapa === 'basica' ? g.basica : null;
+  return [...(extra ? [{ ...extra, destacado: true }] : []), ...g.metodos];
+}
+
+function renderEstudio() {
+  const p = perfil();
+  const propias = p.asignaturas.filter(a => esConsolidado() || a.periodoId === p.periodoActivo);
+  // Selección por defecto: la asignatura prioritaria o la primera; sin materias, técnicas generales
+  if (!estudioSel || (estudioSel.asig && !p.asignaturas.some(a => a.id === estudioSel.asig))) {
+    const prio = Calc.priorizar(propias.map(a => Calc.analizarAsignatura(a, p.escala)), p.escala)[0];
+    estudioSel = prio ? { asig: prio.asig.id } : propias[0] ? { asig: propias[0].id } : { grupo: 'general' };
+  }
+  const asigSel = estudioSel.asig ? p.asignaturas.find(a => a.id === estudioSel.asig) : null;
+  const grupo = asigSel ? grupoMetodos(asigSel.nombre) : estudioSel.grupo;
+  const G = REF.METODOS_ESTUDIO[grupo] || REF.METODOS_ESTUDIO.general;
+  const chipsAsig = propias.map(a => `<button class="chip-prueba ${asigSel?.id === a.id ? 'activa' : ''}" data-action="estudio-sel" data-asig="${a.id}">${esc(a.nombre)}</button>`).join('');
+  const chipsGrupo = Object.entries(REF.METODOS_ESTUDIO).map(([k, g]) => `<button class="chip-prueba ${!asigSel && grupo === k ? 'activa' : ''}" data-action="estudio-sel" data-grupo="${k}">${g.icono} ${esc(g.nombre)}</button>`).join('');
+  const tarjetas = metodosDe(grupo).map(m => {
+    const ya = asigSel && (asigSel.checklist || []).some(c => Calc.claveAsignatura(c.texto) === Calc.claveAsignatura(m.check));
+    return `
+      <article class="metodo ${m.destacado ? 'destacado' : ''}">
+        <header><h3>${esc(m.titulo)}</h3><span class="chip">${esc(m.tiempo)}</span></header>
+        <p>${esc(m.como)}</p>
+        <p class="metodo-porque"><strong>Por qué funciona:</strong> ${esc(m.porque)}</p>
+        ${asigSel ? `<button class="btn sm ${ya ? 'ghost' : ''}" data-action="estudio-check" data-asig="${asigSel.id}" data-check="${esc(m.check)}" ${ya ? 'disabled' : ''}>${ya ? '✓ En tu checklist' : `+ Checklist de ${esc(asigSel.nombre)}`}</button>` : ''}
+      </article>`;
+  }).join('');
+  $('#vista-estudio').innerHTML = `
+    <div class="panel estudio-cab">
+      <div class="seccion-cab"><h2>Métodos de estudio</h2><span class="chip">${esc(tono().nombre)}</span></div>
+      <p class="muted">${esc(tono().estudio)}</p>
+      ${propias.length ? `<p class="estudio-etq">Tus asignaturas</p><div class="chips-pruebas">${chipsAsig}</div>` : ''}
+      <details class="estudio-otras" ${!propias.length ? 'open' : ''}><summary>Ver por materia</summary><div class="chips-pruebas">${chipsGrupo}</div></details>
+    </div>
+    <div class="panel estudio-materia">
+      <div class="seccion-cab"><h2><span aria-hidden="true">${G.icono}</span> ${esc(asigSel ? asigSel.nombre : G.nombre)}</h2>${asigSel ? `<span class="chip info">Técnicas de ${esc(G.nombre)}</span>` : ''}</div>
+      <p class="estudio-enfoque">${esc(G.enfoque)}</p>
+      <div class="metodos-grid">${tarjetas}</div>
+    </div>
+    <div class="panel estudio-generales">
+      <div class="seccion-cab"><h2>★ Sirven para todo</h2></div>
+      <div class="metodos-grid compacto">${REF.METODOS_ESTUDIO.general.metodos.map(m => `<article class="metodo"><header><h3>${esc(m.titulo)}</h3><span class="chip">${esc(m.tiempo)}</span></header><p>${esc(m.como)}</p></article>`).join('')}</div>
     </div>`;
 }
 
@@ -1399,7 +1506,7 @@ function renderResumen(visibles, todos, prioridades) {
   if (top) {
     const motivo = top.estado === 'inalcanzable'
       ? `Aún puedes cerrar con ${fmt(top.finalMaximo)}, ${calificativo(top.finalMaximo)}. Ajusta su meta y enfócate aquí.`
-      : `Necesitas ${fmtNec(top.necesaria)} en el ${fmtPct(top.pesos.pendiente)} que queda (meta ${top.asig.meta}).`;
+      : top.necesaria < escala().aprobacion ? `Te basta con aprobar lo que queda (meta ${top.asig.meta}).` : `Necesitas ${fmtNec(top.necesaria)} en el ${fmtPct(top.pesos.pendiente)} que queda (meta ${top.asig.meta}).`;
     htmlPrioridad = `<div class="stat-titulo">${esc(top.asig.nombre)}</div><div class="stat-sub">${motivo}</div>`;
   } else {
     htmlPrioridad = '<div class="stat-titulo">—</div><div class="stat-sub">Sin asignaturas en riesgo por ahora.</div>';
@@ -1506,6 +1613,7 @@ function htmlProgresoCuerpo(visibles, top) {
             <ul>${g.items.map(a => `<li><button class="enlace" data-action="seleccionar" data-id="${a.asig.id}">${etiquetaAsig(a)}</button><span class="num">${fmt(a.actual, 1)}</span></li>`).join('')}</ul>
           </div>`).join('')}
       </details>` : ''}
+    <p class="progreso-tono">${esc(tono().progreso)}</p>
     ${lineaMotivacion()}`;
 }
 
@@ -1552,7 +1660,7 @@ function mensajeProgreso(analisis, top) {
     frases.push(`En ${nombres(aseguradas)} ya tienes la meta asegurada.`);
   } else if (encaminadas.length) {
     const mejor = encaminadas.reduce((m, a) => (a.actual - a.necesaria > m.actual - m.necesaria ? a : m));
-    frases.push(`En ${esc(mejor.asig.nombre)} te basta un ${fmtNec(mejor.necesaria)} y hoy promedias ${fmt(mejor.actual)}: mantén ese ritmo.`);
+    frases.push(mejor.necesaria < E.aprobacion ? `En ${esc(mejor.asig.nombre)} te basta con aprobar lo que queda (promedias ${fmt(mejor.actual)}).` : `En ${esc(mejor.asig.nombre)} te basta un ${fmtNec(mejor.necesaria)} y hoy promedias ${fmt(mejor.actual)}: mantén ese ritmo.`);
   }
   const inalcanzables = analisis.filter(a => a.estado === 'inalcanzable');
   if (inalcanzables.length) {
@@ -1764,7 +1872,7 @@ function htmlEmpiezaTuRuta(p, visibles) {
         <p class="inicio-perfil">${esc(p.nombre)} · ${esc(contextoPerfil(p))}</p>
         <h2 id="inicio-titulo">Empieza tu ruta</h2>
         <p class="inicio-lead">${sinNada
-          ? 'Tres pasos y verás tus promedios y cuánto necesitas.'
+          ? esc(tono(p).inicioLead)
           : `${esc(ambito)} aún no tiene materias.`}</p>
       </div>
       <ol class="inicio-pasos">
@@ -1772,7 +1880,7 @@ function htmlEmpiezaTuRuta(p, visibles) {
           <span class="paso-num" aria-hidden="true">1</span>
           <div class="paso-cuerpo">
             <h3>Agrega tus materias</h3>
-            <p>${uni ? 'Desde tu malla' : 'Desde el currículum de tu nivel'}, a mano o desde una foto o PDF.</p>
+            <p>${esc(tono(p).paso1)}</p>
             <div class="paso-acciones">
               ${principal}
               <button class="btn" data-action="enfocar-nueva-materia">Escribir una materia</button>
@@ -1791,7 +1899,7 @@ function htmlEmpiezaTuRuta(p, visibles) {
           <span class="paso-num" aria-hidden="true">3</span>
           <div class="paso-cuerpo">
             <h3>Registra tus notas</h3>
-            <p>Verás tu promedio y dónde enfocarte.</p>
+            <p>${esc(tono(p).paso3)}</p>
           </div>
         </li>
       </ol>
@@ -1853,7 +1961,7 @@ function htmlMetricas(a) {
     <div class="metricas">
       <div class="metrica"><div class="etiqueta" title="Solo notas reales registradas (sin décimas extra)">Promedio actual</div><div class="valor num ${claseActual}">${fmt(a.actual)}</div>${(() => { const d = Calc.impactoDecimas(a, E); return d && d.obtenidas && a.actual !== null ? `<div class="con-decimas" title="Promedio + décimas extra obtenidas">con décimas: <strong>${fmt(d.actualConObtenidas)}</strong></div>` : ''; })()}</div>
       <div class="metrica"><div class="etiqueta">Meta</div><div class="valor num">${meta === null ? '<small class="sin-meta-txt">Defínela arriba</small>' : fmt(meta)}</div></div>
-      <div class="metrica"><div class="etiqueta">Necesitas en lo pendiente</div><div class="valor num ${claseNec}">${fmtNec(a.necesaria)}</div></div>
+      <div class="metrica"><div class="etiqueta">Necesitas en lo pendiente</div><div class="valor num ${claseNec} ${a.necesaria !== null && a.necesaria < escala().aprobacion ? 'valor-texto' : ''}">${textoNecesaria(a.necesaria)}</div></div>
       <div class="metrica"><div class="etiqueta">Avance evaluado</div><div class="valor num">${Math.round(a.avance * 100)}%</div></div>
     </div>
     <div class="escala-barra" aria-hidden="true">
@@ -2005,7 +2113,7 @@ function htmlCamino(a) {
   const aviso = a.cerradaManual
     ? `<p class="aviso cierre-aviso">🔒 Cerraste esta asignatura: se calcula solo con lo rendido${a.asig.evaluaciones.some(ev => !Calc.estaCompleta(ev)) ? ' (las evaluaciones pendientes no cuentan)' : ''}. Puedes reabrirla cuando quieras.</p>` : '';
   return `
-    <div class="seccion-cab"><h2>Camino hacia la meta</h2><small>Meta ${textoMeta(a.asig)} · Aprueba ${escala().aprobacion}</small></div>
+    <div class="seccion-cab"><h2>Camino hacia la meta</h2><small>${tieneMeta(a.asig) ? `Meta ${textoMeta(a.asig)}` : 'Sin meta'} · Aprueba ${escala().aprobacion}</small></div>
     ${aviso}
     <div class="escenarios">
       ${htmlEquilibrado(a)}
@@ -2023,7 +2131,7 @@ function htmlMasAlla(a) {
   if (!amb || !amb.escalones.length) return '';
   const filas = amb.escalones.map(e => {
     const alcanzable = e.necesaria <= E.max + Calc.EPS;
-    const texto = e.necesaria <= E.min + Calc.EPS ? 'asegurado' : alcanzable ? `necesitas ${fmtNec(e.necesaria)}` : 'fuera de alcance';
+    const texto = e.necesaria <= E.min + Calc.EPS ? 'asegurado' : e.necesaria < E.aprobacion ? 'con aprobar' : alcanzable ? `necesitas ${fmtNec(e.necesaria)}` : 'fuera de alcance';
     return `<li class="${alcanzable ? '' : 'lejos'}"><span class="num">${fmt(e.meta, 1)}</span><span>${texto}</span></li>`;
   }).join('');
   const techo = amb.techo;
@@ -2063,6 +2171,13 @@ function htmlEquilibrado(a) {
     ? `<p class="nota-aviso">Calculado sobre el ${fmtPct(a.pesos.total)} definido (faltan ${fmtPct(a.pesos.faltante)} por asignar).</p>` : '';
   let clase = '', titulo, cuerpo;
   switch (a.estado) {
+    case 'sin-meta':
+      clase = 'info';
+      titulo = a.pesos.pendiente > Calc.EPS ? 'Define tu meta' : 'Sin evaluaciones pendientes';
+      cuerpo = a.pesos.pendiente > Calc.EPS
+        ? '<p>Escribe arriba la nota que quieres lograr y te diré cuánto necesitas en lo que falta.</p>'
+        : `<p>Ya rendiste todo lo registrado. Tu promedio es <strong>${fmt(a.actual)}</strong>.</p>`;
+      break;
     case 'sin-datos':
       titulo = 'Aún sin datos';
       cuerpo = '<p>Agrega evaluaciones para calcular qué nota necesitas.</p>';
@@ -2093,6 +2208,14 @@ function htmlEquilibrado(a) {
       cuerpo = `<p>Aunque saques la nota mínima (${E.min}) en todo lo que falta, terminas con ${fmt(a.finalMinimo)}: sobre tu meta.</p>`;
       break;
     default: {
+      // Bajo la nota de aprobación no se sugiere un número bajo: basta con aprobar
+      if (a.necesaria !== null && a.necesaria < E.aprobacion - Calc.EPS) {
+        clase = 'ok';
+        titulo = `Basta con aprobar (${fmt(E.aprobacion, 1)})`;
+        cuerpo = `<div class="grande num ok-texto">✓</div>
+          <p>Con un ${fmt(E.aprobacion, 1)} en cada evaluación pendiente cumples tu meta con margen. Buen momento para <strong>consolidar</strong> o <strong>subir tu meta</strong>.</p>`;
+        break;
+      }
       const n = Calc.redondearArriba(Calc.limitar(a.necesaria, E.min, E.max), 1);
       const chips = a.pendientes.filter(ev => Calc.peso(ev) > 0)
         .map(ev => `<span class="chip">${esc(ev.nombre)} (${fmtPct(Calc.peso(ev))}): ${n.toFixed(1)}</span>`).join('');
@@ -2148,7 +2271,9 @@ function htmlRealista(a) {
       titulo = 'Vas bien encaminado';
       cuerpo = a.actual === null
         ? `<p>Aún no tienes notas, y la meta pide ${fmtNec(a.necesaria)}: alcanzable sin exigir más que la nota de aprobación.</p>`
-        : `<p>Hoy promedias <strong>${fmt(a.actual)}</strong> y te basta un <strong>${fmtNec(a.necesaria)}</strong>. Tienes ${fmt(a.actual - a.necesaria)} puntos de margen.</p>`;
+        : a.necesaria < E.aprobacion
+          ? `<p>Hoy promedias <strong>${fmt(a.actual)}</strong>: con <strong>aprobar</strong> lo que queda cumples tu meta. ¡Bien ahí! Considera subir tu meta.</p>`
+          : `<p>Hoy promedias <strong>${fmt(a.actual)}</strong> y te basta un <strong>${fmtNec(a.necesaria)}</strong>. Tienes ${fmt(a.actual - a.necesaria)} puntos de margen.</p>`;
       break;
     case 'subir-ritmo':
       clase = 'warn';
@@ -2301,7 +2426,7 @@ function htmlGuia(a) {
   if (proxima && foco !== 'cerrada') {
     const w = a.pesoEfectivo(proxima.id);
     const nec = a.necesaria !== null && ['encaminado', 'subir-ritmo'].includes(a.estado)
-      ? ` · apunta a un <strong>${fmtNec(Calc.limitar(a.necesaria, escala().min, escala().max))}</strong> o más` : '';
+      ? (a.necesaria < escala().aprobacion ? ' · con aprobar te basta: ve por más' : ` · apunta a un <strong>${fmtNec(Calc.limitar(a.necesaria, escala().min, escala().max))}</strong> o más`) : '';
     lineaProxima = `<p class="guia-proxima">Próxima: <strong>${esc(proxima.nombre)}</strong>${w ? ` (${fmtPesoTexto(w)} del total)` : ''}${nec}</p>`;
   }
   const consejos = consejosGuia(foco, asig.id);
@@ -2328,6 +2453,7 @@ function htmlGuia(a) {
         <button class="btn ghost sm" data-action="otros-consejos" title="Ver otros consejos">Otros consejos ↻</button>
         ${faltan ? `<button class="btn ghost sm" data-action="guia-check-todas">Enviar todas al checklist</button>` : ''}
       </div></div>
+    <p class="guia-tono">${esc(tono().guia)} <button class="enlace" data-action="ir-metodos" data-asig="${asig.id}">Ver métodos para ${esc(asig.nombre)}</button></p>
     <div class="guia-enfoque ${foco}">
       <h3>${esc(enfoque.titulo)}</h3>
       <p>${esc(enfoque.texto)}</p>
@@ -2467,7 +2593,7 @@ function htmlDecimas(a) {
       </div>
       ${d.sinAsignarObtenidas || d.sinAsignarPotenciales ? `<p class="nota-aviso">${fmtDecimas(d.sinAsignarObtenidas + d.sinAsignarPotenciales)} sin aplicar: elige su evaluación.</p>` : ''}
       ${d.necesariaConDecimas !== null && a.necesaria !== null && Math.abs(d.necesariaConDecimas - a.necesaria) > Calc.EPS
-        ? `<p class="nota-aviso">Con las décimas aplicadas te bastaría <strong>${fmtNec(Calc.limitar(d.necesariaConDecimas, E.min, E.max))}</strong> en lo pendiente para tu meta (sin décimas: ${fmtNec(a.necesaria)}).</p>` : ''}
+        ? `<p class="nota-aviso">Con las décimas aplicadas te bastaría <strong>${textoNecesaria(d.necesariaConDecimas, true)}</strong> en lo pendiente (sin décimas: ${textoNecesaria(a.necesaria, true)}).</p>` : ''}
       <p class="nota-aviso">Se suman a la nota elegida, no al promedio. El promedio general usa tus notas registradas.</p>`;
   }
   return `
@@ -4891,7 +5017,20 @@ document.addEventListener('click', e => {
     /* --- Importar desde foto --- */
     case 'abrir-foto': abrirImportarFoto(); break;
     case 'abrir-fechas': abrirFechas(); break;
-    case 'ir-a-notas': irAMisNotas(); break;
+    case 'ir-a-notas': cerrarSidebar(); irAMisNotas(); break;
+    case 'alternar-sidebar': alternarSidebar(); break;
+    case 'ir-metodos': estudioSel = { asig: btn.dataset.asig }; store.vista = 'estudio'; actualizar(); window.scrollTo({ top: 0 }); break;
+    case 'estudio-sel': estudioSel = btn.dataset.asig ? { asig: btn.dataset.asig } : { grupo: btn.dataset.grupo }; renderEstudio(); break;
+    case 'estudio-check': {
+      const a2 = p.asignaturas.find(x => x.id === btn.dataset.asig);
+      if (!a2) break;
+      a2.checklist ??= [];
+      if (a2.checklist.some(c => Calc.claveAsignatura(c.texto) === Calc.claveAsignatura(btn.dataset.check))) { toast('Esa tarea ya está en el checklist'); break; }
+      a2.checklist.push({ id: uid(), texto: btn.dataset.check, hecho: false });
+      guardar(); renderEstudio();
+      toast(`Agregado al checklist de ${a2.nombre}`);
+      break;
+    }
     case 'enfocar-nueva-materia': {
       const campo = $('#form-asignatura [name=nombre]');
       campo?.scrollIntoView({ behavior: movimientoReducido() ? 'auto' : 'smooth', block: 'center' });

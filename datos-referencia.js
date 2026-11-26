@@ -1851,6 +1851,183 @@ const REF = (() => {
   ];
 
   /* =========================================================
+   * TONO POR ETAPA (v20): textos que cambian según el nivel del perfil.
+   *   basica (1°–6° básico) · transicion (7° básico – 2° medio) · admision (3°–4° medio) · uni
+   * ========================================================= */
+  const TONO_ETAPA = {
+    basica: {
+      nombre: 'Educación básica',
+      inicioLead: 'Anota tus notas y verás cómo vas en cada ramo. ¡Es fácil!',
+      paso1: 'Elige tus asignaturas de la lista de tu curso o escríbelas tú.',
+      paso3: 'Cada vez que te entreguen una prueba, anótala aquí.',
+      progreso: 'Pide ayuda a tu profe o a tu familia si algo te cuesta: preguntar es de valientes.',
+      guia: 'Estudia un poquito cada día y repasa con alguien de tu casa.',
+      estudio: 'Técnicas simples para estudiar mejor, con poco tiempo cada día.',
+      nota: 'Pruebas, tareas y trabajos',
+    },
+    transicion: {
+      nombre: '7° básico a 2° medio',
+      inicioLead: 'Tres pasos y verás tus promedios y cuánto necesitas.',
+      paso1: 'Desde el currículum de tu nivel, a mano o desde una foto o PDF.',
+      paso3: 'Verás tu promedio y dónde enfocarte.',
+      progreso: 'Estos años arman tus hábitos de estudio. Y desde 1° Medio, tus promedios ya cuentan para el NEM.',
+      guia: 'Ahora es el momento de crear rutinas: lo que aprendas a organizar hoy te sirve en 3° y 4° Medio.',
+      estudio: 'Técnicas para crear hábitos de estudio que te van a servir en enseñanza media y la PAES.',
+      nota: 'Pruebas, controles y trabajos',
+    },
+    admision: {
+      nombre: '3° y 4° medio',
+      inicioLead: 'Tus notas de estos años pesan en tu NEM y tu Ranking: llévalas al día.',
+      paso1: 'Desde el currículum de tu nivel, a mano o desde una foto o PDF de tu informe.',
+      paso3: 'Verás tu promedio, cuánto necesitas y cómo te afecta para postular.',
+      progreso: 'Cada décima de estos años suma a tu NEM y tu Ranking. Combina el ritmo del colegio con tus ensayos PAES.',
+      guia: 'Organiza tu semana entre las pruebas del colegio y la preparación PAES: las dos cuentan para postular.',
+      estudio: 'Técnicas para rendir en el colegio y, a la vez, prepararte para la PAES.',
+      nota: 'Pruebas, controles y ensayos',
+    },
+    uni: {
+      nombre: 'Universidad',
+      inicioLead: 'Registra tus certámenes y controles, y sigue tu avance en cada ramo.',
+      paso1: 'Desde la malla de tu carrera, a mano o desde una foto o PDF.',
+      paso3: 'Verás tu promedio, la nota que necesitas en el examen y tu avance en la malla.',
+      progreso: 'Prioriza los ramos con prerrequisitos: reprobarlos atrasa la malla. Usa ayudantías y horarios de consulta.',
+      guia: 'Planifica por semanas de certámenes y usa las ayudantías: ahí se ven los ejercicios tipo.',
+      estudio: 'Técnicas para certámenes, controles y exámenes universitarios.',
+      nota: 'Certámenes, controles y exámenes',
+    },
+  };
+
+  /* =========================================================
+   * MÉTODOS DE ESTUDIO POR MATERIA (v20)
+   * Técnicas concretas según la naturaleza de cada asignatura. `uni` y `basica` son variantes
+   * opcionales por etapa; `check` es la tarea que se puede enviar al checklist de la asignatura.
+   * ========================================================= */
+  const METODOS_ESTUDIO = {
+    matematica: {
+      nombre: 'Matemática', icono: '∑', enfoque: 'Se aprende resolviendo, no leyendo. Busca patrones y practica con tiempo.',
+      metodos: [
+        { titulo: 'Ejercicios por patrón', como: 'Agrupa ejercicios por tipo (ecuaciones, funciones, probabilidad…) y resuelve 5 seguidos del mismo hasta que el procedimiento salga solo.', porque: 'Reconocer el tipo de problema es la mitad de resolverlo.', tiempo: '30 min', check: 'Resolver 5 ejercicios seguidos de un mismo tipo' },
+        { titulo: 'Error a la libreta', como: 'Anota cada error con la corrección y por qué ocurrió (signo, despeje, concepto). Repásala antes de cada prueba.', porque: 'Los errores se repiten: anotarlos evita cometerlos de nuevo.', tiempo: '10 min', check: 'Llevar una libreta de errores de Matemática' },
+        { titulo: 'Práctica con reloj', como: 'Haz una guía completa con el tiempo de la prueba real. Si te trabas más de 2 minutos, marca y sigue.', porque: 'Entrena el ritmo y evita quedarte pegado en un ejercicio.', tiempo: '45 min', check: 'Hacer una guía completa con tiempo de prueba' },
+        { titulo: 'Explica el procedimiento', como: 'Resuelve un ejercicio diciendo en voz alta cada paso y su razón. Si no puedes justificar un paso, ahí está tu vacío.', porque: 'Separar “me lo sé de memoria” de “lo entiendo”.', tiempo: '15 min', check: 'Explicar en voz alta 3 ejercicios resueltos' },
+      ],
+      uni: { titulo: 'Certámenes anteriores', como: 'Resuelve certámenes de semestres pasados sin mirar la pauta y compara después. Llévalos a la ayudantía.', porque: 'Los profesores repiten estructuras de preguntas.', tiempo: '90 min', check: 'Resolver un certamen anterior sin pauta' },
+      basica: { titulo: 'Juego de cálculo', como: 'Practica tablas y cálculo mental 10 minutos al día con tarjetas o un juego con tu familia.', porque: 'La rapidez en lo básico te deja energía para pensar los problemas.', tiempo: '10 min', check: 'Practicar cálculo mental 10 minutos' },
+    },
+    fisica: {
+      nombre: 'Física', icono: '⚛', enfoque: 'Entiende el fenómeno antes de la fórmula: dibuja, identifica datos y unidades.',
+      metodos: [
+        { titulo: 'Dibuja antes de calcular', como: 'Para cada problema haz un esquema: cuerpos, fuerzas, vectores o circuito. Recién después elige la fórmula.', porque: 'La mayoría de los errores vienen de no entender la situación, no del cálculo.', tiempo: '20 min', check: 'Dibujar el esquema de 5 problemas de Física' },
+        { titulo: 'Datos, incógnita y unidades', como: 'Escribe siempre: qué sé, qué busco y en qué unidades. Revisa que el resultado tenga unidades y orden de magnitud razonables.', porque: 'Detecta errores de despeje y de unidades antes de entregar.', tiempo: 'en cada ejercicio', check: 'Revisar unidades en todos los ejercicios de la guía' },
+        { titulo: 'Formulario propio', como: 'Arma una hoja con cada fórmula, qué significa cada letra y cuándo se usa (y cuándo no).', porque: 'Saber cuándo aplica una fórmula vale más que memorizarla.', tiempo: '30 min', check: 'Armar mi formulario de Física con cuándo usar cada fórmula' },
+        { titulo: 'Conecta con lo cotidiano', como: 'Busca un ejemplo real de cada tema (frenar en bicicleta, un enchufe, un espejo) y explícalo con lo aprendido.', porque: 'Las preguntas tipo PAES y de desarrollo parten de situaciones reales.', tiempo: '15 min', check: 'Explicar un ejemplo cotidiano de cada tema' },
+      ],
+      uni: { titulo: 'Problemas de ayudantía', como: 'Rehaz los problemas de ayudantía sin mirar la solución; si te trabas, mira solo el primer paso y sigue tú.', porque: 'Los certámenes se parecen más a la ayudantía que a la cátedra.', tiempo: '60 min', check: 'Rehacer 3 problemas de ayudantía sin solución' },
+    },
+    quimica: {
+      nombre: 'Química', icono: '⚗', enfoque: 'Mezcla memoria (nomenclatura, conceptos) y cálculo (mol, estequiometría).',
+      metodos: [
+        { titulo: 'Tarjetas de nomenclatura', como: 'Haz tarjetas con fórmula por un lado y nombre por el otro. Repasa primero las que fallas.', porque: 'La nomenclatura se fija con repetición espaciada, no con una lectura.', tiempo: '15 min', check: 'Hacer tarjetas de nomenclatura y repasarlas' },
+        { titulo: 'Estequiometría paso a paso', como: 'Usa siempre la misma secuencia: balancear → pasar a moles → proporción → pasar a la unidad pedida.', porque: 'Una receta fija evita perderse en los cálculos.', tiempo: '30 min', check: 'Resolver 5 ejercicios de estequiometría con la misma secuencia' },
+        { titulo: 'Mapa de conceptos', como: 'Une en un mapa los conceptos del tema (átomo, enlace, mol, solución…) con flechas que digan cómo se relacionan.', porque: 'Ver las conexiones ayuda en preguntas de análisis.', tiempo: '25 min', check: 'Hacer un mapa conceptual de la unidad de Química' },
+        { titulo: 'Tabla periódica activa', como: 'Practica ubicar elementos y predecir propiedades (tamaño, electronegatividad) según su posición.', porque: 'Entender las tendencias evita memorizar elemento por elemento.', tiempo: '15 min', check: 'Practicar tendencias de la tabla periódica' },
+      ],
+    },
+    biologia: {
+      nombre: 'Biología', icono: '🧬', enfoque: 'Mucho contenido conectado: organízalo en procesos y relaciones.',
+      metodos: [
+        { titulo: 'Mapas de procesos', como: 'Dibuja cada proceso (mitosis, fotosíntesis, sinapsis) como una secuencia de pasos con flechas.', porque: 'Las preguntas piden entender el orden y las causas, no solo nombres.', tiempo: '25 min', check: 'Dibujar el mapa de un proceso biológico' },
+        { titulo: 'Tarjetas con repetición espaciada', como: 'Pregunta por un lado, respuesta por el otro. Repasa hoy, en 2 días y en una semana.', porque: 'Es la forma más eficiente de fijar vocabulario y conceptos.', tiempo: '15 min', check: 'Hacer tarjetas de Biología y repasarlas en 2 días' },
+        { titulo: 'Explica con tus palabras', como: 'Cierra el cuaderno y explica un tema como si se lo contaras a un amigo. Luego revisa qué omitiste.', porque: 'Recordar sin apoyo fija mucho más que releer.', tiempo: '15 min', check: 'Explicar un tema de Biología sin mirar el cuaderno' },
+        { titulo: 'Analiza gráficos y experimentos', como: 'Practica leer gráficos y tablas de experimentos: qué variable cambia, cuál se mide y qué conclusión permiten.', porque: 'Las habilidades científicas son parte central de la PAES de Ciencias.', tiempo: '20 min', check: 'Analizar 3 gráficos o experimentos de Biología' },
+      ],
+    },
+    ciencias: {
+      nombre: 'Ciencias', icono: '🔬', enfoque: 'Integra Biología, Física y Química: entiende la evidencia y su aplicación real.',
+      metodos: [
+        { titulo: 'Pregunta, evidencia, conclusión', como: 'Para cada tema escribe: qué pregunta responde, qué evidencia la apoya y qué se concluye.', porque: 'Es exactamente lo que evalúan las preguntas de habilidades científicas.', tiempo: '20 min', check: 'Escribir pregunta, evidencia y conclusión de un tema' },
+        { titulo: 'Noticias científicas', como: 'Lee una noticia de ciencia o salud y relaciónala con lo visto en clases.', porque: 'Conecta contenidos con problemas reales, como pide la asignatura.', tiempo: '15 min', check: 'Relacionar una noticia científica con la materia' },
+        { titulo: 'Resumen de una página', como: 'Resume cada unidad en una sola hoja: conceptos clave, un esquema y un ejemplo.', porque: 'Sintetizar obliga a distinguir lo esencial.', tiempo: '30 min', check: 'Hacer el resumen de una página de la unidad' },
+      ],
+    },
+    historia: {
+      nombre: 'Historia y Ciencias Sociales', icono: '🏛', enfoque: 'Ordena en el tiempo, entiende causas y consecuencias, y analiza fuentes.',
+      metodos: [
+        { titulo: 'Línea de tiempo con causas', como: 'Haz una línea de tiempo del período y anota, en cada hito, una causa y una consecuencia.', porque: 'La historia se entiende como procesos, no como fechas sueltas.', tiempo: '30 min', check: 'Armar una línea de tiempo con causas y consecuencias' },
+        { titulo: 'Análisis de fuentes', como: 'Ante cada documento o imagen responde: quién lo hizo, cuándo, para qué y qué punto de vista muestra.', porque: 'Analizar fuentes es una de las habilidades centrales evaluadas.', tiempo: '20 min', check: 'Analizar 2 fuentes históricas con las 4 preguntas' },
+        { titulo: 'Cuadro comparativo', como: 'Compara procesos o modelos (por ejemplo, dos modelos económicos) en columnas: características, actores, efectos.', porque: 'Facilita preguntas de comparación y de desarrollo.', tiempo: '25 min', check: 'Hacer un cuadro comparativo de la unidad' },
+        { titulo: 'Tarjetas de conceptos', como: 'Define con tus palabras conceptos clave (democracia, Estado, mercado) con un ejemplo de cada uno.', porque: 'Los conceptos bien definidos se aplican mejor en preguntas nuevas.', tiempo: '15 min', check: 'Definir 10 conceptos clave con un ejemplo' },
+      ],
+    },
+    lenguaje: {
+      nombre: 'Lenguaje y Literatura', icono: '📖', enfoque: 'Lectura crítica y escritura: se mejora leyendo activamente y escribiendo seguido.',
+      metodos: [
+        { titulo: 'Lectura activa', como: 'Al leer, subraya la idea principal de cada párrafo y escribe al margen qué hace el autor (argumenta, ejemplifica, compara).', porque: 'Entender la intención del texto es la base de la comprensión lectora.', tiempo: '20 min', check: 'Leer un texto marcando la idea principal de cada párrafo' },
+        { titulo: 'Localizar, interpretar, evaluar', como: 'Practica preguntas de los tres tipos y anota en cuáles fallas más.', porque: 'Son las tres habilidades que mide la prueba de Competencia Lectora.', tiempo: '30 min', check: 'Practicar preguntas de localizar, interpretar y evaluar' },
+        { titulo: 'Vocabulario en contexto', como: 'Anota palabras que no conoces con la oración donde aparecieron e infiere su significado antes de buscarlo.', porque: 'Inferir por contexto es lo que se pide en las pruebas.', tiempo: '10 min', check: 'Anotar e inferir 5 palabras nuevas de una lectura' },
+        { titulo: 'Escribe y reescribe', como: 'Escribe un párrafo argumentativo y luego mejóralo: tesis clara, un argumento y un ejemplo.', porque: 'La escritura mejora corrigiendo, no solo escribiendo.', tiempo: '20 min', check: 'Escribir y reescribir un párrafo argumentativo' },
+      ],
+      basica: { titulo: 'Leer en voz alta', como: 'Lee 10 minutos en voz alta un cuento o noticia y cuenta después de qué se trataba.', porque: 'Mejora la fluidez y la comprensión.', tiempo: '10 min', check: 'Leer 10 minutos en voz alta y contar el resumen' },
+    },
+    ingles: {
+      nombre: 'Inglés', icono: '🗣', enfoque: 'Exposición diaria y uso activo: escuchar, repetir y producir.',
+      metodos: [
+        { titulo: 'Exposición diaria', como: 'Escucha 15 minutos al día algo en inglés que te guste (series, música, videos) con subtítulos en inglés.', porque: 'La constancia pesa más que sesiones largas y ocasionales.', tiempo: '15 min', check: 'Escuchar 15 minutos de inglés con subtítulos en inglés' },
+        { titulo: 'Repetición en sombra', como: 'Repite en voz alta, al mismo tiempo, frases de un audio corto imitando la pronunciación.', porque: 'Mejora la pronunciación y la comprensión auditiva.', tiempo: '10 min', check: 'Practicar repetición en sombra con un audio corto' },
+        { titulo: 'Vocabulario por temas', como: 'Aprende palabras agrupadas por tema y úsalas en 3 oraciones propias.', porque: 'Usar las palabras las fija mejor que memorizar listas.', tiempo: '15 min', check: 'Escribir 3 oraciones con vocabulario nuevo' },
+        { titulo: 'Gramática con ejemplos', como: 'Para cada estructura (tiempos verbales, condicionales) anota la regla y 3 ejemplos tuyos.', porque: 'Los ejemplos propios son más fáciles de recordar.', tiempo: '20 min', check: 'Escribir 3 ejemplos propios de la estructura gramatical' },
+      ],
+    },
+    filosofia: {
+      nombre: 'Filosofía', icono: '💭', enfoque: 'Comprender argumentos, compararlos y defender una postura propia.',
+      metodos: [
+        { titulo: 'Reconstruye el argumento', como: 'Escribe la tesis del autor y sus premisas en una lista numerada.', porque: 'Ver la estructura del argumento permite evaluarlo y criticarlo.', tiempo: '20 min', check: 'Reconstruir el argumento de un texto filosófico' },
+        { titulo: 'Debate contigo', como: 'Escribe una postura, luego la mejor objeción posible y tu respuesta.', porque: 'Entrena el pensamiento crítico que se evalúa en el desarrollo.', tiempo: '20 min', check: 'Escribir postura, objeción y respuesta' },
+        { titulo: 'Autores en una tabla', como: 'Compara autores en una tabla: pregunta central, respuesta y concepto clave.', porque: 'Evita confundir autores y posturas.', tiempo: '25 min', check: 'Hacer una tabla comparativa de autores' },
+      ],
+    },
+    programacion: {
+      nombre: 'Programación y tecnología', icono: '⌨', enfoque: 'Se aprende programando: escribe código, equivócate y depura.',
+      metodos: [
+        { titulo: 'Programa cada día', como: 'Resuelve un ejercicio corto diario escribiendo el código tú, sin copiar.', porque: 'La lógica de programación se construye con práctica constante.', tiempo: '20 min', check: 'Resolver un ejercicio de programación sin copiar' },
+        { titulo: 'Pseudocódigo primero', como: 'Antes de programar, escribe los pasos en español o dibuja un diagrama de flujo.', porque: 'Separar la lógica del lenguaje reduce errores.', tiempo: '10 min', check: 'Escribir el pseudocódigo antes de programar' },
+        { titulo: 'Depura explicando', como: 'Cuando algo falle, explica línea por línea qué hace el código (a alguien o a un objeto).', porque: 'Explicar el código revela dónde está el error.', tiempo: '15 min', check: 'Depurar un error explicando el código línea por línea' },
+      ],
+    },
+    artes: {
+      nombre: 'Artes, Música y Tecnología', icono: '🎨', enfoque: 'Práctica guiada y reflexión sobre el proceso creativo.',
+      metodos: [
+        { titulo: 'Bitácora del proceso', como: 'Registra en fotos o notas cada etapa de tu trabajo y qué decidiste cambiar.', porque: 'Muchas evaluaciones consideran el proceso, no solo el resultado.', tiempo: '10 min', check: 'Registrar el avance del trabajo en una bitácora' },
+        { titulo: 'Práctica corta y frecuente', como: 'Practica la técnica o el instrumento 15 minutos al día en vez de una sesión larga.', porque: 'La destreza se desarrolla con repetición frecuente.', tiempo: '15 min', check: 'Practicar la técnica 15 minutos' },
+        { titulo: 'Analiza referentes', como: 'Observa una obra o pieza de referencia y anota qué recursos usa y por qué funcionan.', porque: 'Te da ideas y vocabulario para fundamentar tu trabajo.', tiempo: '15 min', check: 'Analizar una obra de referencia' },
+      ],
+    },
+    edfisica: {
+      nombre: 'Educación Física', icono: '🏃', enfoque: 'Constancia física y conocimiento de lo que haces y por qué.',
+      metodos: [
+        { titulo: 'Registro de entrenamiento', como: 'Anota lo que entrenas, tiempos o repeticiones, y compara semana a semana.', porque: 'Ver tu progreso motiva y muestra qué mejorar.', tiempo: '5 min', check: 'Anotar mi entrenamiento de la semana' },
+        { titulo: 'Técnica antes que intensidad', como: 'Practica despacio el gesto técnico (lanzamiento, salto, postura) antes de hacerlo rápido.', porque: 'Una buena técnica evita lesiones y mejora el rendimiento.', tiempo: '15 min', check: 'Practicar el gesto técnico de la unidad' },
+        { titulo: 'Repasa la teoría', como: 'Si hay prueba teórica, haz tarjetas con reglas, capacidades físicas y conceptos de salud.', porque: 'La teoría también se evalúa.', tiempo: '15 min', check: 'Hacer tarjetas de la teoría de Educación Física' },
+      ],
+    },
+    general: {
+      nombre: 'Cualquier asignatura', icono: '★', enfoque: 'Técnicas que funcionan en todas las materias.',
+      metodos: [
+        { titulo: 'Práctica de recuperación', como: 'Cierra el cuaderno y escribe todo lo que recuerdes del tema. Luego compara y completa.', porque: 'Recordar sin apoyo es la técnica de estudio con más evidencia.', tiempo: '15 min', check: 'Escribir lo que recuerdo del tema sin mirar' },
+        { titulo: 'Repaso espaciado', como: 'Repasa lo nuevo al día siguiente, a los 3 días y a la semana, en sesiones cortas.', porque: 'Espaciar el repaso evita olvidar lo aprendido.', tiempo: '10 min por repaso', check: 'Programar repasos al día, 3 días y una semana' },
+        { titulo: 'Bloques de foco', como: 'Estudia 25 minutos sin celular y descansa 5. Repite 3 o 4 veces.', porque: 'La atención se sostiene mejor en bloques cortos.', tiempo: '25 + 5 min', check: 'Hacer 3 bloques de 25 minutos sin celular' },
+        { titulo: 'Enseña a otro', como: 'Explícale el tema a un compañero o a alguien de tu casa.', porque: 'Enseñar muestra lo que aún no entiendes bien.', tiempo: '15 min', check: 'Explicarle el tema a otra persona' },
+      ],
+    },
+  };
+  /** Categoría de materia (Importador.categoriasDe) → grupo de métodos. */
+  const GRUPO_METODOS = {
+    matematica: 'matematica', fisica: 'fisica', quimica: 'quimica', biologia: 'biologia', ciencias: 'ciencias',
+    historia: 'historia', lenguaje: 'lenguaje', ingles: 'ingles', filosofia: 'filosofia',
+    programacion: 'programacion', tecnologia: 'programacion', artes: 'artes', musica: 'artes', edfisica: 'edfisica',
+  };
+
+  /* =========================================================
    * UNIVERSIDADES (v14): sitio web oficial y tipo (estatal / privada).
    * Incluye todas las del catálogo de carreras y las de las listas del Perfil.
    * Sitios comprobados el 26-11-2026 (todos respondieron; la U. Autónoma redirige a https).
@@ -2227,6 +2404,7 @@ const REF = (() => {
    * tipo: 'version' | 'mejora' | 'aviso'. El `id` sirve para recordar cuáles se leyeron.
    * ========================================================= */
   const NOVEDADES = [
+    { id: 'v20', tipo: 'version', titulo: 'Versión 20', fecha: '2026-11-26', texto: 'Nueva sección “Métodos de estudio” con técnicas por materia, mensajes adaptados a tu nivel (básica, media, 3°–4° medio o universidad) y sugerencias de nota más realistas: si tu meta ya está asegurada, te lo decimos en vez de pedirte un 1.0.' },
     { id: 'v14', tipo: 'version', titulo: 'Versión 14', fecha: '2026-11-26', texto: 'Nueva sección “Universidades” con sus sitios oficiales, escalas de conversión por prueba en PAES, décimas aplicadas a una evaluación (con recomendación de dónde conviene usarlas), metas por asignatura opcionales con aviso si no alcanzan tu meta general, avisos de ponderaciones incompletas y botón “Ir a mis notas” siempre a mano.' },
     { id: 'v13', tipo: 'version', titulo: 'Versión 13', fecha: '2026-11-25', texto: 'Registra tus ensayos PAES en “PAES → Mis ensayos”: convierte tus respuestas correctas con las tablas oficiales de DEMRE, muestra tu evolución, mejor puntaje y promedio por prueba, y puede llevarlos al simulador. Además, el cambio de tema ahora tiene una transición animada.' },
     { id: 'v9', tipo: 'version', titulo: 'Versión 9', fecha: '2026-11-25', texto: 'Feriados y fechas clave con cuenta regresiva (editables en “Más → Feriados y fechas clave”), bloque de próximas fechas junto a la frase, “Tu progreso” desglosado por período y, en Consolidado, el promedio de cada asignatura entre semestres emparejado por nombre.' },
@@ -2350,7 +2528,7 @@ const REF = (() => {
     NOVEDADES,
     AREAS_CURRICULO, AREA_OTRAS,
     FEEDBACK_NOTA, FRASES, CITAS, FRASES_UNI, GUIA_EVALUACION, PAES,
-    FERIADOS_CHILE, HITOS_REFERENCIA, VERSION_FECHAS, FUENTE_FECHAS, ESCALAS_PAES, PRUEBAS_ENSAYO, UNIVERSIDADES_INFO,
+    FERIADOS_CHILE, HITOS_REFERENCIA, VERSION_FECHAS, FUENTE_FECHAS, ESCALAS_PAES, PRUEBAS_ENSAYO, UNIVERSIDADES_INFO, TONO_ETAPA, METODOS_ESTUDIO, GRUPO_METODOS,
     VERSION, NIVELES_ESCOLARES, NIVELES_TP, AÑOS_MEDIA, ESPECIALIDADES_TP,
     seccionesCurriculo, UNIVERSIDADES, MALLAS, construirMalla,
     NEM_OFICIAL, NEM_FUENTE, GRUPOS_NEM, URL_NEM,
