@@ -1,0 +1,203 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Ruta Académica</title>
+  <!-- Tipografía (opcional: sin conexión se usan las fuentes del sistema) -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <!-- v15: Space Grotesk (títulos y marca) · Plus Jakarta Sans (navegación y controles) ·
+       IBM Plex Sans (lectura) · JetBrains Mono (cifras). Google Fonts sirve latin y latin-ext. -->
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:ital,wght@0,400;0,500;0,600;1,400;1,500&family=JetBrains+Mono:wght@400..800&family=Plus+Jakarta+Sans:wght@500..800&family=Space+Grotesk:wght@500..700&display=swap">
+  <link rel="stylesheet" href="styles.css">
+  <!-- Tema: oscuro por defecto; si se eligió el claro (sol/luna) se aplica antes de pintar, sin destello -->
+  <script>
+    (function () {
+      try {
+        var t = localStorage.getItem('rutaAcademica.tema');
+        if (t === 'dark' || t === 'light') document.documentElement.setAttribute('data-theme', t);
+      } catch (e) { /* sin almacenamiento: queda el oscuro predeterminado */ }
+    })();
+  </script>
+</head>
+<body>
+  <!-- v11: navegación en barra lateral izquierda (en celular se vuelve una barra superior compacta) -->
+  <header class="sidebar" id="sidebar">
+    <div class="marca">
+      <span class="logo" aria-hidden="true">◎</span>
+      <div class="marca-texto">
+        <h1>Ruta Académica</h1>
+        <p id="contexto-perfil"></p>
+      </div>
+    </div>
+
+    <!-- Perfil activo -->
+    <!-- v15: ver/cambiar perfil (arriba) separado de crear uno nuevo (abajo, a la derecha) -->
+    <div class="sb-perfil">
+      <label class="sb-perfil-etq" for="sel-perfil">Perfil activo</label>
+      <select id="sel-perfil" class="sel-perfil" title="Cambiar de perfil"></select>
+      <div class="sb-perfil-acciones">
+        <button class="btn ghost sm btn-editar-perfil" data-action="abrir-perfil" title="Datos del perfil: nivel, escala y carrera">✎ Editar perfil</button>
+        <button class="btn sm btn-nuevo-mini" data-action="nuevo-perfil" title="Crear un perfil nuevo (otro año u otra persona)">＋ Nuevo</button>
+      </div>
+    </div>
+
+    <!-- v14: acceso directo, visible en todas las vistas, al registro de notas -->
+    <button class="btn-ir-notas" data-action="ir-a-notas" title="Ir directo a tus notas (registro de evaluaciones)">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M3 17.25V21h3.75L17.8 9.94l-3.75-3.75L3 17.25ZM20.7 7.04a1 1 0 0 0 0-1.41l-2.33-2.34a1 1 0 0 0-1.41 0l-1.83 1.83 3.75 3.75 1.82-1.83Z"/></svg>
+      <span>Ir a mis notas</span>
+    </button>
+
+    <p class="sb-seccion" id="sb-sec-nav">Secciones</p>
+    <nav class="tabs" role="tablist" aria-labelledby="sb-sec-nav" aria-orientation="vertical">
+      <button class="tab" role="tab" data-action="vista" data-vista="notas">
+        <svg class="tab-icono" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M6 2h9l5 5v13a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2Zm8 1.5V8h4.5L14 3.5ZM8 12v2h8v-2H8Zm0 4v2h5v-2H8Z"/></svg>
+        <span>Mis Notas y Metas</span>
+      </button>
+      <button class="tab" role="tab" data-action="vista" data-vista="admision">
+        <svg class="tab-icono" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M12 3 1 9l11 6 9-4.9V17h2V9L12 3Zm-6 9.2V16c0 2 2.7 4 6 4s6-2 6-4v-3.8l-6 3.3-6-3.3Z"/></svg>
+        <span>NEM y Admisión</span> <span id="tab-nem-badge" class="pill">Escolar</span>
+      </button>
+      <button class="tab" role="tab" data-action="vista" data-vista="paes">
+        <svg class="tab-icono" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M5 3h14a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2Zm2 4v2h10V7H7Zm0 4v2h10v-2H7Zm0 4v2h6v-2H7Z"/></svg>
+        <span>PAES</span>
+      </button>
+      <button class="tab" role="tab" data-action="vista" data-vista="universidades">
+        <svg class="tab-icono" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M12 2 2 7v2h20V7L12 2ZM4 11v7h3v-7H4Zm6.5 0v7h3v-7h-3ZM17 11v7h3v-7h-3ZM2 20v2h20v-2H2Z"/></svg>
+        <span>Universidades</span>
+      </button>
+    </nav>
+
+    <!-- Atajos frecuentes -->
+    <p class="sb-seccion">Atajos</p>
+    <div class="sb-atajos" aria-label="Atajos">
+      <button class="sb-atajo" data-action="abrir-foto"><span aria-hidden="true">⇪</span> Importar notas</button>
+      <button class="sb-atajo" data-action="abrir-fechas"><span aria-hidden="true">◷</span> Fechas clave</button>
+      <button class="sb-atajo" data-action="abrir-ayuda"><span aria-hidden="true">?</span> Ayuda</button>
+    </div>
+
+    <div class="perfil-bar sb-pie">
+      <!-- Tema: sol en modo oscuro (activa el claro) y luna en modo claro (activa el oscuro) -->
+      <button class="btn ghost sm btn-tema" id="btn-tema" data-action="alternar-tema" aria-label="Activar modo claro" title="Activar modo claro"></button>
+      <!-- Bandeja de novedades -->
+      <div class="flotante-ancla">
+        <button class="btn ghost sm btn-campana" data-action="novedades" aria-haspopup="dialog" aria-expanded="false" aria-label="Novedades y avisos">
+          <svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M12 22a2.5 2.5 0 0 0 2.45-2h-4.9A2.5 2.5 0 0 0 12 22Zm7-6V11a7 7 0 0 0-5.5-6.84V3.5a1.5 1.5 0 0 0-3 0v.66A7 7 0 0 0 5 11v5l-2 2v1h18v-1Z"/></svg>
+          <span id="n-novedades" class="punto-novedades" hidden>0</span>
+        </button>
+        <div id="panel-novedades" class="panel-flotante panel-novedades" role="dialog" aria-label="Novedades" hidden></div>
+      </div>
+      <!-- Apoyo (provisional: aún sin enlace de donaciones) -->
+      <div class="flotante-ancla">
+        <button class="btn ghost sm btn-apoyar" data-action="apoyar" aria-haspopup="dialog" aria-expanded="false" title="Apoyar Ruta Académica">♥ <span class="txt-apoyar">Apoyar</span></button>
+        <div id="panel-apoyo" class="panel-flotante panel-apoyo" role="dialog" aria-label="Apoyar el proyecto" hidden>
+          <strong>¡Gracias por querer apoyar!</strong>
+          <p>El enlace de donaciones estará disponible próximamente. Por ahora, la mejor ayuda es usar la app y compartirla.</p>
+          <a class="btn sm" href="#" aria-disabled="true" data-action="apoyar-proximamente">Donar (próximamente)</a>
+        </div>
+      </div>
+      <details class="menu">
+        <summary class="btn ghost sm" aria-label="Más opciones">Más ▾</summary>
+        <div class="menu-lista" role="menu">
+          <button role="menuitem" data-action="nuevo-perfil">+ Nuevo perfil</button>
+          <button role="menuitem" data-action="abrir-gestion">Gestionar perfiles…</button>
+          <button role="menuitem" data-action="abrir-papelera">Papelera de perfiles <span id="n-papelera" class="pill" hidden>0</span></button>
+          <button role="menuitem" data-action="abrir-foto">Importar notas desde foto</button>
+          <button role="menuitem" data-action="abrir-fechas">Feriados y fechas clave…</button>
+          <hr>
+          <button role="menuitem" data-action="abrir-guia">Guía de inicio (paso a paso)</button>
+          <button role="menuitem" data-action="abrir-ayuda">Ayuda: qué hace cada función (?)</button>
+          <hr>
+          <button role="menuitem" data-action="abrir-ficha">Exportar ficha de notas (PDF / TXT / CSV)…</button>
+          <button role="menuitem" data-action="exportar-todo">Exportar respaldo (todo)</button>
+          <button role="menuitem" data-action="exportar-perfil">Exportar perfil actual</button>
+          <button role="menuitem" data-action="importar-respaldo">Importar respaldo…</button>
+          <hr>
+          <button role="menuitem" data-action="cargar-ejemplo">Cargar datos de ejemplo</button>
+          <button role="menuitem" class="peligro" data-action="reiniciar">Reiniciar todo</button>
+        </div>
+      </details>
+    </div>
+  </header>
+
+  <main class="contenedor">
+    <!-- Vista 1: notas y metas -->
+    <section id="vista-notas">
+      <div id="periodos" class="barra-periodos"></div>
+      <!-- v9: frase + bloque útil al costado (apilados en móvil) -->
+      <div class="fila-dia">
+        <aside id="widget-dia" class="widget-dia" aria-label="Próximas fechas y evaluación"></aside>
+        <!-- v11.1: la frase vuelve junto a las fechas, en su propia tarjeta -->
+        <aside id="frase-dia" class="frase-dia" aria-label="Frase del día"></aside>
+      </div>
+      <section id="resumen" class="panel resumen" aria-label="Resumen"></section>
+      <section id="promocion" class="panel promocion" aria-label="Promoción escolar" aria-live="polite" hidden></section>
+      <details id="meta-general" class="panel meta-general"></details>
+      <!-- v9: promedio de cada asignatura entre períodos (solo en Consolidado) -->
+      <section id="consolidado-asig" class="panel consolidado-asig" aria-label="Promedio por asignatura entre períodos" hidden></section>
+
+      <div class="layout">
+        <aside class="panel lateral">
+          <h2>Asignaturas</h2>
+          <div id="lista" class="lista"></div>
+          <!-- v14: dos formas de agregar materias, una junto a la otra -->
+          <div class="agregar-materias">
+            <p class="agregar-titulo">Agregar materias</p>
+            <form id="form-asignatura" class="form-asignatura" autocomplete="off">
+              <input name="nombre" placeholder="Nombre (ej. Química)" required maxlength="80" aria-label="Nombre de la asignatura">
+              <input name="meta" type="text" inputmode="decimal" placeholder="Meta (opcional)" aria-label="Meta de promedio (opcional)" title="La nota que quieres lograr. Puedes dejarla vacía y definirla después.">
+              <select name="periodo" aria-label="Período de la nueva asignatura"></select>
+              <button class="btn primario" type="submit">Agregar</button>
+            </form>
+            <div id="agregar-curriculo" class="agregar-curriculo"></div>
+          </div>
+        </aside>
+        <section id="detalle" class="detalle" aria-live="polite"></section>
+      </div>
+    </section>
+
+    <!-- Vista 2: NEM y admisión -->
+    <section id="vista-admision" hidden></section>
+
+    <!-- Vista 3: PAES (qué es, pruebas y temarios oficiales) -->
+    <section id="vista-paes" class="vista-paes" hidden></section>
+
+    <!-- Vista 4: universidades con sus sitios oficiales -->
+    <section id="vista-universidades" class="vista-universidades" hidden></section>
+  </main>
+
+  <!-- v14: bienvenida del primer inicio (crea el perfil en un paso) -->
+  <dialog id="dlg-bienvenida" class="dlg-medio dlg-bienvenida" aria-labelledby="bienvenida-titulo"><div id="bienvenida-cuerpo" class="form-dialogo"></div></dialog>
+
+  <!-- Diálogos -->
+  <dialog id="dlg-perfil"><form id="form-perfil" class="form-dialogo" autocomplete="off"></form></dialog>
+  <dialog id="dlg-curriculo" class="dlg-ancho"><div id="curriculo-cuerpo" class="form-dialogo"></div></dialog>
+  <dialog id="dlg-malla" class="dlg-ancho"><div id="malla-cuerpo" class="form-dialogo"></div></dialog>
+  <dialog id="dlg-foto" class="dlg-ancho"><div id="foto-cuerpo" class="form-dialogo"></div></dialog>
+  <dialog id="dlg-guia" class="dlg-guia" aria-label="Guía y ayuda"><div id="guia-cuerpo" class="form-dialogo"></div></dialog>
+  <dialog id="dlg-ficha" class="dlg-medio"><form id="form-ficha" class="form-dialogo" autocomplete="off"></form></dialog>
+  <dialog id="dlg-perfiles" class="dlg-medio"><div id="perfiles-cuerpo" class="form-dialogo"></div></dialog>
+  <dialog id="dlg-fechas" class="dlg-medio" aria-label="Feriados y fechas clave"><div id="fechas-cuerpo" class="form-dialogo"></div></dialog>
+  <dialog id="dlg-corte" class="dlg-medio"><form id="form-corte" class="form-dialogo" autocomplete="off"></form></dialog>
+
+  <!-- Entradas de archivo ocultas -->
+  <input type="file" id="archivo-respaldo" accept="application/json,.json" hidden>
+  <input type="file" id="archivo-catalogo" accept="application/json,.json" hidden>
+
+  <datalist id="dl-universidades"></datalist>
+  <datalist id="dl-carreras"></datalist>
+  <datalist id="dl-carreras-pref"></datalist>
+
+  <!-- Menú contextual de períodos (clic derecho, toque largo o botón "⋯ Período") -->
+  <div id="menu-contextual" class="menu-contextual" hidden></div>
+
+  <div id="toast" class="toast" role="status" aria-live="polite"></div>
+
+  <!-- Orden: datos → cálculo → extractor → interfaz -->
+  <script src="datos-referencia.js"></script>
+  <script src="calculos.js"></script>
+  <script src="importador.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
