@@ -2274,3 +2274,37 @@ input[inputmode="decimal"], input[inputmode="numeric"], input[type="number"] {
   .sidebar .marca p { max-width: 100%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .sb-pie { min-width: 0; }
 }
+
+/* v18.1 · Celular: la etapa/carrera va en su propia línea bajo el perfil (no compite con los íconos) */
+.contexto-movil { display: none; }
+@media (max-width: 860px) {
+  .sidebar .marca p#contexto-perfil { display: none; }
+  .sidebar .marca { align-self: center; }
+  .contexto-movil {
+    display: block; grid-column: 1 / -1; grid-row: 3; margin: -2px 2px 0;
+    font-family: var(--fuente-ui); font-size: .76rem; font-weight: 600; color: var(--muted);
+    line-height: 1.35; overflow-wrap: anywhere;
+  }
+  .sb-pie { margin-left: 8px; }
+}
+
+/* =========================================================
+ * v19 · Logo (libro abierto + trayectoria que sube). Sin caja de fondo: el trazo con degradado
+ * se apoya directo sobre la barra, con un halo suave del mismo color para darle presencia.
+ * ========================================================= */
+:root { --logo-1: #8b6dff; --logo-2: #d65ad8; --logo-3: #ff8f7e; --logo-halo: rgba(170, 100, 255, .32); }
+:root[data-theme="light"] { --logo-1: #5b3df5; --logo-2: #b72fb0; --logo-3: #e8604c; --logo-halo: rgba(110, 60, 240, .18); }
+.sidebar .logo, .logo {
+  width: 46px; height: 38px; padding: 0; border-radius: 0; transform: none; background: none; box-shadow: none;
+  display: grid; place-items: center; flex: none;
+}
+.logo-svg { width: 100%; height: 100%; display: block; overflow: visible; filter: drop-shadow(0 0 7px var(--logo-halo)); }
+.logo-svg .logo-ruta { stroke-width: 3.6; }
+.marca:hover .logo-svg { filter: drop-shadow(0 0 10px var(--logo-halo)); transition: filter var(--anim-media) var(--curva); }
+/* Título junto al logo: “RUTA” en negrita y “Académica” liviano, como en el logotipo */
+.sidebar .marca h1 { letter-spacing: -.01em; }
+/* Bienvenida: el logo grande, sin caja */
+.bienvenida-sello { width: 78px; height: 64px; background: none; box-shadow: none; transform: none; border-radius: 0; }
+@media (max-width: 860px) {
+  .sidebar .logo { width: 38px; height: 31px; }
+}

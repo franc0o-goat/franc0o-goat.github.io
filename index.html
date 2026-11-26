@@ -4,6 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Ruta Académica</title>
+  <link rel="icon" type="image/svg+xml" href="logo.svg">
   <!-- Tipografía (opcional: sin conexión se usan las fuentes del sistema) -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -25,7 +26,20 @@
   <!-- v11: navegación en barra lateral izquierda (en celular se vuelve una barra superior compacta) -->
   <header class="sidebar" id="sidebar">
     <div class="marca">
-      <span class="logo" aria-hidden="true">◎</span>
+      <!-- v19: logo de Ruta Académica (libro abierto + trayectoria que sube), degradado según el tema -->
+      <span class="logo" aria-hidden="true"><svg class="logo-svg" viewBox="0 0 68 54" fill="none" stroke-linecap="round" stroke-linejoin="round">
+        <defs><linearGradient id="logo-grad" x1="4" y1="46" x2="64" y2="4" gradientUnits="userSpaceOnUse">
+          <stop offset="0" style="stop-color: var(--logo-1)"/><stop offset=".55" style="stop-color: var(--logo-2)"/><stop offset="1" style="stop-color: var(--logo-3)"/>
+        </linearGradient></defs>
+        <g stroke="url(#logo-grad)" stroke-width="3.2">
+          <path d="M9 14v28h15c4 0 6.5 1.6 9 4 2.5-2.4 5-4 9-4h13V24"/>
+          <path d="M5 18v28h18c4.5 0 7.5 1.4 10 4 2.5-2.6 5.5-4 10-4h16V22"/>
+          <path d="M33 46V17c-2-3.3-5-5-10-5H13"/>
+          <path d="M33 17c2-3.3 5-5 9-5h3"/>
+          <path class="logo-ruta" d="M9 40 19 25l12 13 31-31"/>
+          <path class="logo-ruta" d="M51 7h11v11"/>
+        </g>
+      </svg></span>
       <div class="marca-texto">
         <h1>Ruta Académica</h1>
         <p id="contexto-perfil"></p>
@@ -33,6 +47,9 @@
     </div>
 
     <!-- Perfil activo -->
+    <!-- v18: en el celular, la etapa y carrera van en su propia línea (bajo el perfil), sin chocar con los íconos -->
+    <p id="contexto-perfil-movil" class="contexto-movil" aria-hidden="true"></p>
+
     <!-- v15: ver/cambiar perfil (arriba) separado de crear uno nuevo (abajo, a la derecha) -->
     <div class="sb-perfil">
       <label class="sb-perfil-etq" for="sel-perfil">Perfil activo</label>

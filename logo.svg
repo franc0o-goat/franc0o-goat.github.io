@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 68 54" fill="none" stroke-linecap="round" stroke-linejoin="round">
+  <!-- Ruta Académica · libro abierto + trayectoria que sube (versión sin letras) -->
+  <defs>
+    <linearGradient id="g" x1="4" y1="46" x2="64" y2="4" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#7c5cff"/>
+      <stop offset=".55" stop-color="#d14bd8"/>
+      <stop offset="1" stop-color="#ff8a7a"/>
+    </linearGradient>
+  </defs>
+  <g stroke="url(#g)" stroke-width="3.2">
+    <path d="M9 14v28h15c4 0 6.5 1.6 9 4 2.5-2.4 5-4 9-4h13V24"/>
+    <path d="M5 18v28h18c4.5 0 7.5 1.4 10 4 2.5-2.6 5.5-4 10-4h16V22"/>
+    <path d="M33 46V17c-2-3.3-5-5-10-5H13"/>
+    <path d="M33 17c2-3.3 5-5 9-5h3"/>
+    <path d="M9 40 19 25l12 13 31-31"/>
+    <path d="M51 7h11v11"/>
+  </g>
+</svg>

@@ -686,7 +686,9 @@ function renderTopbar() {
   // v15: el selector solo cambia de perfil; crear uno nuevo tiene su propio botón ("＋ Nuevo")
   $('#sel-perfil').innerHTML = opts(store.perfiles.map(p => [p.id, p.nombre]), store.perfilActivo);
   $('#contexto-perfil').textContent = contextoPerfil();
-  $('#contexto-perfil').title = contextoPerfil();   // texto completo si se recorta (carreras largas en el celular)
+  $('#contexto-perfil').title = contextoPerfil();   // texto completo si se recorta
+  const ctxMovil = $('#contexto-perfil-movil');
+  if (ctxMovil) ctxMovil.textContent = contextoPerfil();
   const n = store.papelera.length;
   $('#n-papelera').textContent = n;
   $('#n-papelera').hidden = !n;
@@ -873,7 +875,15 @@ function irAMisNotas() {
 function abrirBienvenida() {
   const p = perfil();
   $('#bienvenida-cuerpo').innerHTML = `
-    <div class="bienvenida-sello" aria-hidden="true">◎</div>
+    <div class="bienvenida-sello" aria-hidden="true"><svg class="logo-svg" viewBox="0 0 68 54" fill="none" stroke-linecap="round" stroke-linejoin="round">
+      <defs><linearGradient id="logo-grad-b" x1="4" y1="46" x2="64" y2="4" gradientUnits="userSpaceOnUse">
+        <stop offset="0" style="stop-color: var(--logo-1)"/><stop offset=".55" style="stop-color: var(--logo-2)"/><stop offset="1" style="stop-color: var(--logo-3)"/>
+      </linearGradient></defs>
+      <g stroke="url(#logo-grad-b)" stroke-width="3.2">
+        <path d="M9 14v28h15c4 0 6.5 1.6 9 4 2.5-2.4 5-4 9-4h13V24"/><path d="M5 18v28h18c4.5 0 7.5 1.4 10 4 2.5-2.6 5.5-4 10-4h16V22"/>
+        <path d="M33 46V17c-2-3.3-5-5-10-5H13"/><path d="M33 17c2-3.3 5-5 9-5h3"/>
+        <path class="logo-ruta" d="M9 40 19 25l12 13 31-31"/><path class="logo-ruta" d="M51 7h11v11"/>
+      </g></svg></div>
     <h2 id="bienvenida-titulo">¡Bienvenido a Ruta Académica!</h2>
     <p>Solo necesitas un perfil. Puedes cambiarlo después en “Perfil”.</p>
     <label>¿Cómo se llama tu perfil? <input id="bienvenida-nombre" maxlength="40" placeholder="Ej: Franco · 3° Medio" autocomplete="off"></label>
