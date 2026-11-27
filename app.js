@@ -47,6 +47,17 @@ const REGIMENES = {
   anual:      { etiqueta: 'Anual',      nombre: 'Año',       cantidad: 1 },
 };
 const MODALIDADES = { ch: 'Escolar Científico-Humanista', tp: 'Escolar Técnico-Profesional', uni: 'Universitario' };
+/* (v26) Variantes de fondo. La clave es el valor de data-theme en <html>; 'auto' sigue al sistema (claro u oscuro).
+ * Lista ESTRICTA: cualquier otro valor guardado o importado vuelve a 'dark'. */
+const TEMAS = {
+  light:   { nombre: 'Claro',      detalle: 'Día: gris claro y descansado' },
+  pizarra: { nombre: 'Pizarra',    detalle: 'Carbón suave' },
+  dark:    { nombre: 'Oscuro',     detalle: 'El clásico de Ruta Académica' },
+  onyx:    { nombre: 'Medianoche', detalle: 'Negro profundo (pantallas OLED)' },
+  auto:    { nombre: 'Automático', detalle: 'Sigue el tema de tu sistema' },
+};
+const CLAVE_TEMA = 'rutaAcademica.tema';   // copia del tema para pintarlo antes de cargar app.js (sin destello)
+const MAX_SNAPSHOTS = 20;                  // (v26) puntos de control por perfil: cuida la cuota de localStorage
 const URL_TESSERACT = 'https://cdn.jsdelivr.net/npm/tesseract.js@5.1.1/dist/tesseract.min.js';
 // Lector de PDF (pdf.js de Mozilla, versión fija): se descarga solo al subir un PDF; el archivo no sale del equipo
 const URL_PDFJS = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js';
@@ -87,6 +98,7 @@ function nuevoPerfil(nombre = 'Perfil Principal') {
     // calendario y los ensayos, y la pantalla no se actualizaba hasta recargar con F5)
     calendario: migrarCalendario(null),
     ensayos: [],
+    snapshots: [],                // v26: puntos de control (resúmenes para comparar)
   };
 }
 
@@ -235,9 +247,12 @@ function normalizarPerfil(p) {
   r.unidadPeso = ['pct', 'dec'].includes(p.unidadPeso) ? p.unidadPeso : 'pct';
   // v8: el orden del arreglo de períodos ES el orden visible (se reordena arrastrando); nombres siempre texto
   const usadosP = new Set();
+  // v26: se guardan los períodos por defecto ANTES de sobrescribir (r y base son el mismo objeto): un perfil
+  // sin períodos válidos antes quedaba con la lista vacía y la validación se caía en r.periodos[0].id
+  const periodosBase = base.periodos;
   r.periodos = listaAcotada(p.periodos, 12).filter(x => esObjeto(x) && idSano(x.id) && !usadosP.has(x.id) && usadosP.add(x.id))
     .map(x => ({ id: x.id, nombre: textoSano(x.nombre, 40, 'Período') || 'Período' }));
-  if (!r.periodos.length) r.periodos = base.periodos;
+  if (!r.periodos.length) r.periodos = periodosBase;
   const usadosA = new Set();
   r.asignaturas = listaAcotada(p.asignaturas, 300).map(a => asignaturaSana(a, E, r.periodos, usadosA)).filter(Boolean);
   r.periodoActivo = p.periodoActivo === 'todos' || r.periodos.some(x => x.id === p.periodoActivo) ? p.periodoActivo : r.periodos[0].id;
@@ -276,8 +291,46 @@ function normalizarPerfil(p) {
       puntajeManual: Number.isInteger(e.puntajeManual) && e.puntajeManual >= 100 && e.puntajeManual <= 1000 ? e.puntajeManual : null,
       escala: REF.ESCALAS_PAES.some(x => x.id === e.escala) ? e.escala : REF.ESCALAS_PAES[0].id,
     }));
+  const usadosS = new Set();
+  r.snapshots = listaAcotada(p.snapshots, MAX_SNAPSHOTS).map(x => snapshotSano(x, usadosS)).filter(Boolean);
   if (Number.isFinite(p.eliminadoEn)) r.eliminadoEn = p.eliminadoEn;
   return r;
+}
+
+/**
+ * (v26) Punto de control: solo un RESUMEN para comparar (nunca una copia de las notas).
+ * { id, etiqueta ≤60, creado (ms), origen 'manual'|'auto', escala {min,max,aprobacion},
+ *   general|null, nem { prom 1–7|null, puntaje 0–1000|null }, ponderado 0–1000|null, carrera ≤160,
+ *   paes { prueba: 100–1000 } (≤ 20), asignaturas [{ clave, nombre, promedio|null }] (≤ 80) }
+ */
+const RE_CLAVE_PAES = /^[a-z0-9_]{1,30}$/;
+function snapshotSano(s, usados = new Set()) {
+  if (!esObjeto(s)) return ajuste(null);
+  const creado = numSano(s.creado, 0, 8.64e15);
+  if (creado === null) return ajuste(null);
+  const E = escalaSana(s.escala);
+  const nem = esObjeto(s.nem) ? s.nem : {};
+  const paes = {};
+  for (const [k, v] of Object.entries(esObjeto(s.paes) ? s.paes : {}).slice(0, 20)) {
+    const n = numSano(v, 100, 1000);
+    if (n !== null && RE_CLAVE_PAES.test(k)) paes[k] = n;
+  }
+  const claves = new Set();
+  return {
+    id: idUnico(s.id, usados),
+    etiqueta: textoSano(s.etiqueta, 60, 'Punto de control') || 'Punto de control',
+    creado,
+    origen: s.origen === 'auto' ? 'auto' : 'manual',
+    escala: E,
+    general: numSano(s.general, E.min, E.max),
+    nem: { prom: numSano(nem.prom, 1, 7), puntaje: numSano(nem.puntaje, 0, 1000) },
+    ponderado: numSano(s.ponderado, 0, 1000),
+    carrera: textoSano(s.carrera, 160),
+    paes,
+    asignaturas: listaAcotada(s.asignaturas, 80).filter(esObjeto).map(a => ({
+      clave: textoSano(a.clave, 80), nombre: textoSano(a.nombre, 80, 'Asignatura') || 'Asignatura', promedio: numSano(a.promedio, E.min, E.max),
+    })).filter(a => a.clave && !claves.has(a.clave) && claves.add(a.clave)),
+  };
 }
 
 /**
@@ -315,11 +368,16 @@ function migrarCalendario(c) {
   return cal;
 }
 
+/** Tema elegido antes de la v26 (se guardaba solo en su propia clave): 'light' o 'dark'. */
+function temaLegado() {
+  try { const t = localStorage.getItem(CLAVE_TEMA); return Object.hasOwn(TEMAS, t) ? t : 'dark'; } catch { return 'dark'; }
+}
+
 function storeVacio() {
   const p = nuevoPerfil();
   return {
     version: 4, perfilActivo: p.id, perfiles: [p], papelera: [], tablasNEM: {}, vista: 'notas', subvista: 'nem',
-    catalogoCortes: clonar(REF.CATALOGO_CORTES), config: { ocrTesseract: false, diasPapelera: 30, novedadesLeidas: [] },
+    catalogoCortes: clonar(REF.CATALOGO_CORTES), config: { ocrTesseract: false, diasPapelera: 30, novedadesLeidas: [], tema: temaLegado() },
   };
 }
 
@@ -374,6 +432,8 @@ function normalizarStore(s) {
     ocrTesseract: cfg.ocrTesseract === true,
     diasPapelera: DIAS_PAPELERA.includes(cfg.diasPapelera) ? cfg.diasPapelera : base.config.diasPapelera,
     novedadesLeidas: listaAcotada(cfg.novedadesLeidas, 500).filter(x => typeof x === 'string' && x.length <= 80),
+    // v26: variante de fondo; solo valores de la lista TEMAS (un respaldo antiguo sin tema toma el guardado aparte)
+    tema: Object.hasOwn(TEMAS, cfg.tema) ? cfg.tema : (cfg.tema === undefined ? temaLegado() : ajuste('dark')),
   };
   const usadosC = new Set();
   r.catalogoCortes = Array.isArray(s.catalogoCortes)
@@ -791,10 +851,21 @@ function toast(msg, accion, opciones = {}) {
   const t = $('#toast');
   t.innerHTML = `${opciones.clase === 'celebra' ? '<span class="toast-emoji" aria-hidden="true">🎉</span>' : ''}<span>${esc(msg)}</span>${accion ? `<button class="toast-btn" data-action="toast-accion">${esc(accion.etiqueta)}</button>` : ''}`;
   accionToast = accion?.fn ?? null;
+  // v26: con un diálogo modal abierto, todo lo de afuera queda inerte y el botón "Deshacer" no se podía
+  // pulsar (ni con teclado). El aviso se mueve DENTRO del diálogo abierto y vuelve al <body> al cerrarlo.
+  const modal = [...document.querySelectorAll('dialog[open]')].filter(d => d.matches(':modal')).at(-1);
+  const destino = modal || document.body;
+  if (t.parentElement !== destino) { destino.appendChild(t); void t.offsetWidth; }
   t.className = `toast visible ${opciones.clase || ''}`;
   clearTimeout(temporizadorToast);
   temporizadorToast = setTimeout(() => { t.classList.remove('visible'); accionToast = null; }, opciones.duracion ?? (accion ? 7000 : 3200));
 }
+
+// v26: al cerrarse el diálogo que contenía el aviso, el aviso vuelve al <body> (sigue visible si aún no vence)
+document.addEventListener('close', e => {
+  const t = $('#toast');
+  if (t && e.target instanceof HTMLDialogElement && e.target.contains(t)) document.body.appendChild(t);
+}, true);
 
 /** Ejecuta fn conservando el foco del campo activo (por su data-key). */
 function preservarFoco(fn) {
@@ -827,6 +898,7 @@ function renderInterno() {
     const p = perfil();
     renderTopbar();
     if ($('#dlg-perfiles').open) renderGestion();
+    if ($('#dlg-snapshots').open) renderSnapshots();   // v26: tras "Deshacer" o al cambiar de perfil
     const enAdmision = store.vista === 'admision';
     const enPaes = store.vista === 'paes';
     const enUni = store.vista === 'universidades';
@@ -924,53 +996,76 @@ function seguro(fn, contenedor) {
 // Errores no capturados (promesas incluidas): quedan en la consola y no congelan la interfaz
 addEventListener('unhandledrejection', e => { console.error('Promesa rechazada sin manejar:', e.reason); });
 
-/* ---------- Tema claro / oscuro (v10) ---------- */
+/* ---------- Tema y variantes de fondo (v10 → v26) ---------- */
 
-// v11: el modo oscuro es el predeterminado; el claro solo se usa si se elige con el botón sol/luna
-const CLAVE_TEMA = 'rutaAcademica.tema';   // 'light' | 'dark'
-const temaActual = () => (document.documentElement.dataset.theme === 'light' ? 'light' : 'dark');
-const ICONO_LUNA = '<svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M20.7 14.6A8.5 8.5 0 0 1 9.4 3.3a.6.6 0 0 0-.8-.7A9.7 9.7 0 1 0 21.4 15.4a.6.6 0 0 0-.7-.8Z"/></svg>';
-const ICONO_SOL = '<svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="4.2" fill="currentColor"/><g stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 2.5v2.2M12 19.3v2.2M2.5 12h2.2M19.3 12h2.2M5.3 5.3l1.6 1.6M17.1 17.1l1.6 1.6M5.3 18.7l1.6-1.6M17.1 6.9l1.6-1.6"/></g></svg>';
+// v26: cuatro fondos (Claro, Pizarra, Oscuro, Medianoche) + Automático. La elección vive en store.config.tema
+// (se valida en normalizarStore y viaja en el respaldo); CLAVE_TEMA guarda una copia para pintar sin destello.
+const consultaOscuro = matchMedia('(prefers-color-scheme: dark)');
+/** Tema efectivo (valor de data-theme): 'auto' se resuelve según el sistema. */
+const resolverTema = t => (t === 'auto' ? (consultaOscuro.matches ? 'dark' : 'light') : (Object.hasOwn(TEMAS, t) ? t : 'dark'));
+const temaActual = () => resolverTema(document.documentElement.dataset.theme);
+const ICONO_TEMA = '<svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M12 2a10 10 0 0 0 0 20c1.1 0 2-.9 2-2 0-.5-.2-1-.5-1.3-.3-.4-.5-.8-.5-1.3 0-1.1.9-2 2-2h2.4A5.6 5.6 0 0 0 22 9.8C22 5.5 17.5 2 12 2Zm-5.5 10a1.5 1.5 0 1 1 0-3 1.5 1.5 0 0 1 0 3Zm3-4a1.5 1.5 0 1 1 0-3 1.5 1.5 0 0 1 0 3Zm5 0a1.5 1.5 0 1 1 0-3 1.5 1.5 0 0 1 0 3Zm3 4a1.5 1.5 0 1 1 0-3 1.5 1.5 0 0 1 0 3Z"/></svg>';
+const ICONO_AUTO = '<svg width="20" height="20" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M12 4V1L8 5l4 4V6a6 6 0 0 1 5.7 7.9l1.5 1.5A8 8 0 0 0 12 4Zm0 14a6 6 0 0 1-5.7-7.9L4.8 8.6A8 8 0 0 0 12 20v3l4-4-4-4v3Z"/></svg>';
+const ICONO_CHECK = '<svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="m9.5 16.2-3.7-3.7-1.4 1.4 5.1 5.1L20.6 8l-1.4-1.4z"/></svg>';
 
-/** Luna en modo claro (lleva al oscuro) y sol en modo oscuro (lleva al claro). */
+/** Botón del pie: abre el selector de fondos. */
 function renderBotonTema() {
   const b = $('#btn-tema');
   if (!b) return;
-  const oscuro = temaActual() === 'dark';
-  const texto = oscuro ? 'Activar modo claro' : 'Activar modo oscuro';
-  b.innerHTML = oscuro ? ICONO_SOL : ICONO_LUNA;
+  const elegido = store.config.tema;
+  const texto = `Tema: ${TEMAS[elegido]?.nombre || 'Oscuro'} (cambiar fondo)`;
+  if (!b.dataset.icono) { b.innerHTML = ICONO_TEMA; b.dataset.icono = '1'; }
   b.title = texto;
   b.setAttribute('aria-label', texto);
-  b.setAttribute('aria-pressed', String(oscuro));
+  if (!$('#panel-tema').hidden) renderPanelTema();
 }
 
-/** Cambia el tema de toda la app y recuerda la elección (desde ahí ya no sigue al sistema). */
-let temaDestino = null;   // tema pedido cuya transición aún no termina (clics seguidos alternan bien)
-function alternarTema(origen) {
-  const nuevo = (temaDestino ?? temaActual()) === 'dark' ? 'light' : 'dark';
+/** (v26) Selector estilo "temas predeterminados": muestras cuadradas con un ✓ en la elegida. */
+function renderPanelTema() {
+  const elegido = store.config.tema;
+  $('#panel-tema').innerHTML = `
+    <div class="tema-cab"><strong id="tema-titulo">Fondo de la app</strong><small class="muted">${esc(TEMAS[elegido]?.detalle || '')}</small></div>
+    <div class="tema-muestras" role="radiogroup" aria-labelledby="tema-titulo">
+      ${Object.entries(TEMAS).map(([k, t]) => `
+        <button type="button" class="tema-muestra" data-action="elegir-tema" data-tema="${k}" role="radio" aria-checked="${k === elegido}"
+          title="${esc(`${t.nombre}: ${t.detalle}`)}" aria-label="${esc(t.nombre)}">
+          <span class="tema-chip tema-chip-${k}" aria-hidden="true">${k === 'auto' ? ICONO_AUTO : ''}</span>
+          ${k === elegido ? `<span class="tema-check" aria-hidden="true">${ICONO_CHECK}</span>` : ''}
+          <span class="tema-nombre">${esc(t.nombre)}</span>
+        </button>`).join('')}
+    </div>`;
+}
+
+/** Pone data-theme sin transición (carga, deshacer, importar respaldo o cambio del sistema en modo Automático). */
+function sincronizarTema() {
+  const efectivo = resolverTema(store.config.tema);
+  if (document.documentElement.dataset.theme !== efectivo) document.documentElement.dataset.theme = efectivo;
+}
+consultaOscuro.addEventListener?.('change', () => { if (store.config.tema === 'auto') sincronizarTema(); });
+
+/** Cambia el fondo de toda la app con un fundido suave y recuerda la elección. */
+let temaDestino = null;   // tema pedido cuya transición aún no termina (clics seguidos: manda el último)
+function elegirTema(elegido, origen) {
+  if (!Object.hasOwn(TEMAS, elegido)) return;
+  const nuevo = resolverTema(elegido);
+  const anterior = temaActual();
+  store.config.tema = elegido;
+  guardar();
+  try { localStorage.setItem(CLAVE_TEMA, elegido); } catch { /* sin almacenamiento: dura esta sesión */ }
+  renderBotonTema();
   temaDestino = nuevo;
   const aplicar = () => {
     if (temaDestino !== nuevo) return;   // llegó un clic posterior: manda el más reciente
     temaDestino = null;
     document.documentElement.dataset.theme = nuevo;
-    try { localStorage.setItem(CLAVE_TEMA, nuevo); } catch { /* sin almacenamiento: dura esta sesión */ }
-    renderBotonTema();
   };
+  if (nuevo === anterior) { aplicar(); return; }
   // v13.2: el cambio de tema es un FUNDIDO (sin desplazamientos ni zoom), apto también con
   // "reducir movimiento"; en ese caso solo se omite el desenfoque.
   const reducido = movimientoReducido();
-
-  // (v13) Transición: el nuevo tema se expande en un círculo desde el botón sol/luna y,
-  // mientras avanza, la vista anterior se "invierte" levemente (filtro) hasta desaparecer.
-  const r = (origen || $('#btn-tema'))?.getBoundingClientRect();
-  const x = r ? r.left + r.width / 2 : innerWidth / 2;
-  const y = r ? r.top + r.height / 2 : innerHeight / 2;
-  const radio = Math.hypot(Math.max(x, innerWidth - x), Math.max(y, innerHeight - y));
-  void radio;
-  // v13.1: transición suave y larga, sin bordes duros ni golpe de luz.
-  // Fundido cruzado de 0,6 s: el tema nuevo aparece atenuado (más oscuro y algo desenfocado) y
-  // recupera su brillo poco a poco, mientras el anterior se desvanece. Así, al pasar a modo claro,
-  // la vista no se ilumina de golpe y no encandila.
+  void origen;
+  // v13.1: fundido cruzado de 0,6 s: el tema nuevo aparece atenuado y recupera su brillo poco a poco,
+  // así al pasar a un fondo claro la vista no se ilumina de golpe y no encandila.
   const DURACION = 600;
   const haciaClaro = nuevo === 'light';
 
@@ -1002,8 +1097,11 @@ function alternarTema(origen) {
   setTimeout(() => html.classList.remove('tema-transicion'), DURACION);
 }
 
+
 function renderTopbar() {
+  sincronizarTema();   // v26: tras deshacer o importar un respaldo, el fondo sigue a store.config.tema
   renderBotonTema();
+  renderAtajoNotas();
   // v15: el selector solo cambia de perfil; crear uno nuevo tiene su propio botón ("＋ Nuevo")
   $('#sel-perfil').innerHTML = opts(store.perfiles.map(p => [p.id, p.nombre]), store.perfilActivo);
   $('#contexto-perfil').textContent = contextoPerfil();
@@ -1179,6 +1277,21 @@ function renderConsolidadoAsignaturas(todos) {
 }
 
 /* ---------- Ir a mis notas (v14): desde cualquier vista ---------- */
+
+/**
+ * (v26) El acceso principal dice lo que hace en cada contexto: dentro de "Mis Notas" lleva directo a
+ * escribir una nota nueva (acción más frecuente); desde otra sección, vuelve a tus notas.
+ */
+function renderAtajoNotas() {
+  const b = $('.btn-ir-notas');
+  if (!b) return;
+  const enNotas = store.vista === 'notas';
+  const texto = enNotas ? (perfil().seleccionada ? 'Agregar nota' : 'Agregar asignatura') : 'Ir a mis notas';
+  const span = b.querySelector('span');
+  if (span && span.textContent !== texto) span.textContent = texto;
+  b.title = enNotas ? `${texto}: salta al formulario` : 'Ir directo a tus notas (registro de evaluaciones)';
+  b.setAttribute('aria-label', texto);
+}
 
 function irAMisNotas() {
   document.querySelectorAll('dialog[open]').forEach(d => d.close());
@@ -1813,17 +1926,109 @@ function renderPeriodos() {
     </div>
     <div class="periodos-acciones">
       ${esConsolidado() ? '' : `
-        <button class="btn ghost sm" data-action="menu-periodo" data-id="${p.periodoActivo}" aria-haspopup="menu" title="Renombrar o mover este período (también con clic derecho sobre él)"><svg class="ico-periodo" viewBox="0 0 24 24" width="15" height="15" aria-hidden="true"><path fill="currentColor" d="M7 2h2v2h6V2h2v2h2a2 2 0 0 1 2 2v13a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2V2ZM5 9v10h14V9H5Zm2 2h4v4H7v-4Z"/></svg> Período</button>
-        <button class="btn ghost sm peligro" data-action="eliminar-periodo" title="Elimina el período y sus asignaturas (podrás deshacerlo unos segundos)">Eliminar período</button>`}
+        <button class="btn ghost sm" data-action="menu-periodo" data-id="${esc(p.periodoActivo)}" aria-haspopup="menu" title="Renombrar, mover o eliminar este período (también con clic derecho sobre él)"><svg class="ico-periodo" viewBox="0 0 24 24" width="15" height="15" aria-hidden="true"><path fill="currentColor" d="M7 2h2v2h6V2h2v2h2a2 2 0 0 1 2 2v13a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2V2ZM5 9v10h14V9H5Zm2 2h4v4H7v-4Z"/></svg> Período ▾</button>`}
       ${accionContexto}
-      <button class="btn sm primario" data-action="abrir-foto" title="Leer notas desde una foto, un PDF o texto pegado. Siempre revisas antes de guardar">Importar notas</button>
-      <button class="btn ghost sm btn-ayuda" data-action="abrir-ayuda" title="Ayuda: qué hace cada función" aria-label="Ayuda: qué hace cada función">(?)</button>
+      <button class="btn ghost sm btn-importar" data-action="abrir-foto" title="Leer notas desde una foto, un PDF o texto pegado. Siempre revisas antes de guardar"><span aria-hidden="true">⇪</span> Importar notas</button>
     </div>`;
   const sel = $('#form-asignatura [name=periodo]');
   sel.innerHTML = opts(p.periodos.map(x => [x.id, x.nombre]), p.periodos.at(-1).id);
   sel.hidden = !esConsolidado();
   const meta = $('#form-asignatura [name=meta]');
   meta.min = escala().min; meta.max = escala().max; meta.step = paso();
+}
+
+/* ---------- (v26) Palanca de impacto: dónde rinde más el mismo esfuerzo ---------- */
+
+/** Unidad fija de mejora: +0,3 en escalas 1–7 (o similares); +5 en escalas amplias (ej. 0–100). */
+const pasoMejora = () => (escala().max - escala().min > 20 ? 5 : 0.3);
+/** Decimales para mostrar cambios pequeños del promedio. */
+const decDelta = () => (dec() === 1 ? 1 : 2);
+
+/**
+ * Cuánto cambia el puntaje NEM si el promedio del año en curso sube `deltaAnual`.
+ * Solo perfiles escolares de 1°–4° Medio cuyo promedio del año se calcula con sus notas (si lo
+ * escribiste a mano, tus notas no lo mueven). NEM = media de los años disponibles → sube deltaAnual / n.
+ * Devuelve { deltaProm, deltaPts } o null.
+ */
+function efectoNEM(deltaAnual) {
+  const p = perfil();
+  if (!esEscolar(p) || !REF.AÑOS_MEDIA.includes(p.nivel) || !(deltaAnual > 0) || !Number.isFinite(deltaAnual)) return null;
+  const anuales = promediosAnualesEfectivos();
+  const delAño = anuales.find(x => x.año === p.nivel);
+  if (!delAño || delAño.valor === null || delAño.origen === 'manual') return null;
+  const vals = anuales.filter(x => typeof x.valor === 'number');
+  if (!vals.length) return null;
+  const prom = vals.reduce((s, x) => s + x.valor, 0) / vals.length;
+  const deltaProm = deltaAnual / vals.length;
+  const tabla = tablaNEM(grupoNEM()).tabla;
+  const antes = Calc.puntajeNEM(prom, tabla);
+  const despues = Calc.puntajeNEM(Math.min(7, prom + deltaProm), tabla);
+  if (antes === null || despues === null) return null;
+  return { deltaProm, deltaPts: despues - antes, años: vals.length };
+}
+
+/** Tarjeta "Mayor impacto" del resumen: el ramo donde subir la misma nota mueve más tu promedio. */
+function htmlPalancaNotas(visibles, todos) {
+  const p = perfil();
+  const paso = pasoMejora();
+  const lista = Calc.palancaNotas(visibles, p.escala, { paso });
+  if (!lista.length) {
+    const motivo = !visibles.length ? 'Agrega asignaturas y evaluaciones para ver dónde rinde más tu esfuerzo.'
+      : 'No queda margen en lo pendiente: tus asignaturas están cerradas, sin evaluaciones pendientes con ponderación o ya en la nota máxima.';
+    return `<div class="stat-titulo">—</div><div class="stat-sub">${motivo}</div>`;
+  }
+  const d = decDelta();
+  const top = lista[0];
+  const ambito = esConsolidado() ? 'tu promedio consolidado' : `tu promedio de ${nombrePeriodo(p.periodoActivo)}`;
+  const subida = top.limitada ? `llegas a la nota máxima (${fmtSigno(top.subida, 1)})` : `subes ${fmtSigno(paso, 1)} sobre tu ritmo actual`;
+  const foco = top.evalTop && top.evalTop.pesoPct < 99.5
+    ? ` Lo que más pesa: <strong>${esc(top.evalTop.nombre)}</strong> (${Calc.redondear(top.evalTop.pesoPct, 0)}% del ramo).` : '';
+  // NEM: el año escolar completo (todas las asignaturas del perfil), no solo el período visible
+  const enAño = Calc.palancaNotas(todos, p.escala, { paso }).find(x => x.id === top.id);
+  const nem = enAño ? efectoNEM(enAño.deltaGeneral) : null;
+  const textoNem = nem && nem.deltaPts >= 1 ? ` ≈ <strong>+${Calc.redondear(nem.deltaPts, 0)} pts NEM</strong>.` : '';
+  const siguen = lista.slice(1, 3).map(x => `${esc(x.nombre)} (${fmtSigno(x.deltaGeneral, d)})`).join(' · ');
+  return `
+    <button type="button" class="stat-titulo palanca-ramo" data-action="seleccionar" data-id="${esc(top.id)}" title="Abrir ${esc(top.nombre)}">${esc(top.nombre)}</button>
+    <div class="stat-sub">Si en lo que queda ${subida}, sumas <strong class="palanca-delta">${fmtSigno(top.deltaGeneral, d)}</strong> a ${esc(ambito)} (${fmtSigno(top.deltaAsignatura, d)} en el ramo).${textoNem}${foco}</div>
+    ${siguen ? `<div class="stat-sub palanca-siguen">Le siguen: ${siguen}</div>` : ''}`;
+}
+
+/**
+ * Bloque "Dónde rinde más tu esfuerzo" en Admisión: el mismo esfuerzo (+30 puntos en una prueba PAES,
+ * o +0,3 en tu promedio del año para el NEM) comparado en puntos ponderados para la carrera elegida.
+ */
+const PASO_PAES = 30;
+function htmlPalancaAdmision(sel, ef) {
+  const extra = [];
+  const ing = perfil().admision.puntajes || {};
+  const nem = efectoNEM(pasoMejora());
+  if (nem && nem.deltaPts > 0 && typeof ef.nem === 'number') {
+    // Ranking vacío = igual al NEM (como en el simulador): sube junto con él
+    const mod = { ...ef, nem: Math.min(1000, ef.nem + nem.deltaPts) };
+    if (typeof ing.ranking !== 'number' && typeof ef.ranking === 'number') mod.ranking = Math.min(1000, ef.ranking + nem.deltaPts);
+    const delta = Calc.puntajePonderado(mod, sel.ponderaciones).parcial - Calc.puntajePonderado(ef, sel.ponderaciones).parcial;
+    extra.push({ k: 'nem', delta, sube: nem.deltaPts, detalle: `${fmtSigno(pasoMejora(), 1)} en tu promedio de este año (≈ +${Calc.redondear(nem.deltaPts, 0)} pts NEM${typeof ing.ranking !== 'number' ? ' y Ranking' : ''}${nem.años < 4 ? `; con ${nem.años} año${nem.años === 1 ? '' : 's'} de Media cargado${nem.años === 1 ? '' : 's'}, por eso pesa tanto` : ''})` });
+  }
+  const r = Calc.palancaAdmision(ef, sel.ponderaciones, { paso: PASO_PAES, extra });
+  if (r.motivo === 'sin-ponderaciones') return '<p class="aviso">Esta carrera no tiene ponderaciones definidas: edítala en el catálogo para ver qué prueba suma más.</p>';
+  if (!r.items.length) {
+    return r.motivo === 'sin-puntajes'
+      ? '<p class="nota-aviso">Ingresa tus puntajes (o regístralos en Ensayos) para ver qué prueba suma más a tu ponderado.</p>'
+      : '<p class="nota-aviso">Tus pruebas ponderadas ya están en el puntaje máximo: no queda margen por mejorar aquí.</p>';
+  }
+  const etiqueta = x => (x.k === 'nem' ? 'NEM' : etiquetaComponente(x.k));
+  const detalle = x => x.detalle || (x.limitado ? `+${Calc.redondear(x.sube, 0)} pts (hasta 1000)` : `+${PASO_PAES} pts en la prueba`);
+  const top = r.items[0];
+  return `
+    <div class="palanca palanca-adm">
+      <div class="palanca-cab"><span class="palanca-icono" aria-hidden="true">⚡</span><strong>Dónde rinde más tu esfuerzo</strong></div>
+      <p><strong>${esc(etiqueta(top))}</strong>: ${esc(detalle(top))} suma <strong class="palanca-delta">+${fmtPts(top.delta)}</strong> a tu ponderado.</p>
+      ${r.items.length > 1 ? `<p class="palanca-siguen">Le siguen:</p><ol class="palanca-lista">${r.items.slice(1).map(x => `
+        <li><span>${esc(etiqueta(x))} <small>${esc(detalle(x))}</small></span><span class="num">+${fmtPts(x.delta)}</span></li>`).join('')}</ol>` : ''}
+      ${r.sinDato.length ? `<p class="nota-aviso">Sin puntaje para comparar: ${r.sinDato.map(k => esc(etiquetaComponente(k))).join(', ')}. Ingrésalo arriba para incluirla.</p>` : ''}
+      <p class="nota-aviso">Mismo esfuerzo para todas: +${PASO_PAES} puntos por prueba${extra.length ? ` o ${fmtSigno(pasoMejora(), 1)} en tu promedio del año` : ''}, con las ponderaciones de esta carrera. Es una estimación.</p>
+    </div>`;
 }
 
 /* ---------- Resumen superior (franja compacta) ---------- */
@@ -1866,6 +2071,10 @@ function renderResumen(visibles, todos, prioridades) {
     <div class="stat stat-prioridad">
       <div class="stat-etiqueta">Prioridad de estudio</div>
       ${htmlPrioridad}
+    </div>
+    <div class="stat stat-palanca">
+      <div class="stat-etiqueta" title="Dónde el mismo esfuerzo (${fmtSigno(pasoMejora(), 1)} en lo pendiente) sube más tu promedio"><span aria-hidden="true">⚡</span> Mayor impacto</div>
+      ${htmlPalancaNotas(visibles, todos)}
     </div>
     <div class="stat stat-mensaje">
       <div class="stat-etiqueta">Tu progreso</div>
@@ -2275,7 +2484,7 @@ function renderDetalle(visibles, idPrioritaria) {
           </label>
           <button class="btn sm ${asig.cerrada ? 'primario' : ''}" data-action="toggle-cierre" aria-pressed="${!!asig.cerrada}"
             title="${asig.cerrada ? 'Volver a calcular con las evaluaciones pendientes' : 'Dar por terminada la asignatura con lo ya rendido (sumen o no 100%)'}">${asig.cerrada ? '🔓 Reabrir asignatura' : '🔒 Cerrar asignatura'}</button>
-          <button class="btn ghost peligro sm" data-action="eliminar-asignatura">Eliminar</button>
+          <button class="btn ghost peligro sm btn-eliminar-asig" data-action="eliminar-asignatura" title="Eliminar esta asignatura y sus notas (podrás deshacerlo unos segundos)"><span aria-hidden="true">🗑</span> Eliminar</button>
         </div>
       </div>
       ${htmlMetricas(a)}
@@ -3033,7 +3242,7 @@ function renderGuia() {
   cuerpo.innerHTML = `
     <div class="guia-cab">
       <span class="guia-etiqueta">Guía de inicio · paso ${guia.paso + 1} de ${pasos.length}</span>
-      <button type="button" class="btn ghost sm" data-action="cerrar-dialogo" title="Puedes volver a abrirla con el botón (?)">Omitir guía</button>
+      <button type="button" class="btn ghost sm" data-action="cerrar-dialogo" title="Puedes volver a abrirla desde Ayuda (Herramientas o Más ▾)">Omitir guía</button>
     </div>
     <ol class="guia-progreso" aria-label="Pasos">${pasos.map((x, i) => `<li class="${i === guia.paso ? 'actual' : i < guia.paso ? 'hecho' : ''}"><button type="button" data-action="guia-ir" data-paso="${i}" aria-label="Paso ${i + 1}: ${esc(x.titulo)}">${i + 1}</button></li>`).join('')}</ol>
     <div class="guia-paso">
@@ -3504,6 +3713,7 @@ function htmlResultadoPonderado(sel, ef) {
       ${htmlPerspectiva(sel)}
       ${pesos}${faltan}
       ${htmlAportes(r, sel, ef)}
+      ${htmlPalancaAdmision(sel, ef)}
       ${comparacion}
       <p class="nota-aviso">${esc(reqTexto)} ${typeof sel.ponderadoMinimo === 'number' ? `Ponderado mínimo de postulación: ${sel.ponderadoMinimo}.` : ''}</p>
       <p class="nota-aviso">Fuente: ${esc(sel.fuente || '—')} <button class="enlace" data-action="editar-corte-sel" data-id="${esc(sel.id)}">Editar corte o ponderaciones</button></p>
@@ -4645,6 +4855,7 @@ function confirmarImportacion() {
   const destinos = [];
   const unidasImport = [];   // asignaturas "nuevas" que ya existían con otra escritura
   const creadasImport = new Set();
+  puntoAutomatico('importar notas');   // v26: para comparar después cómo cambió tu promedio con lo importado
   conDeshacer('Notas incluidas', () => {
     for (const g of importacion.grupos) {
       const filas = g.filas.filter(f => f.incluir);
@@ -4947,22 +5158,209 @@ function renderPanelNovedades() {
       </li>`).join('')}</ul>`;
 }
 
+/** Botones que abren un panel flotante del pie (Tema, Novedades, Apoyar). */
+const SEL_BOTONES_FLOTANTES = '[data-action="novedades"], [data-action="apoyar"], [data-action="alternar-tema"]';
+function cerrarFlotantes() {
+  document.querySelectorAll('.panel-flotante').forEach(x => { x.hidden = true; });
+  document.querySelectorAll(SEL_BOTONES_FLOTANTES).forEach(b => b.setAttribute('aria-expanded', 'false'));
+}
 function alternarFlotante(id, boton) {
   const panel = $(id);
   const abrir = panel.hidden;
-  document.querySelectorAll('.panel-flotante').forEach(x => { x.hidden = true; });
-  document.querySelectorAll('[data-action="novedades"], [data-action="apoyar"]').forEach(b => b.setAttribute('aria-expanded', 'false'));
+  cerrarFlotantes();
   panel.hidden = !abrir;
   boton.setAttribute('aria-expanded', String(abrir));
   // En pantallas angostas el panel es fijo: se ubica justo bajo el botón
   panel.style.top = window.innerWidth <= 640 ? `${Math.round(boton.getBoundingClientRect().bottom + 8)}px` : '';
   if (abrir && id === '#panel-novedades') renderPanelNovedades();
+  if (abrir && id === '#panel-tema') { renderPanelTema(); panel.querySelector('[aria-checked="true"]')?.focus(); }
+}
+// v26: Escape cierra el panel flotante abierto (o el menú "Más") y devuelve el foco a su botón
+document.addEventListener('keydown', e => {
+  if (e.key !== 'Escape') return;
+  const abierto = [...document.querySelectorAll('.panel-flotante')].find(x => !x.hidden);
+  if (abierto) {
+    const boton = abierto.closest('.flotante-ancla')?.querySelector(SEL_BOTONES_FLOTANTES);
+    cerrarFlotantes();
+    boton?.focus();
+    return;
+  }
+  const menu = document.querySelector('details.menu[open]');
+  if (menu) { menu.removeAttribute('open'); menu.querySelector('summary')?.focus(); }
+});
+// Flechas dentro del selector de fondo (patrón de grupo de opciones)
+document.addEventListener('keydown', e => {
+  const actual = e.target.closest?.('.tema-muestra');
+  if (!actual || !['ArrowRight', 'ArrowLeft', 'ArrowDown', 'ArrowUp'].includes(e.key)) return;
+  const todas = [...document.querySelectorAll('.tema-muestra')];
+  const i = todas.indexOf(actual) + (e.key === 'ArrowRight' || e.key === 'ArrowDown' ? 1 : -1);
+  todas[(i + todas.length) % todas.length]?.focus();
+  e.preventDefault();
+});
+
+/** (v26) "Compartir Ruta Académica": hoja nativa del sistema o, si no existe, copia el enlace (solo http/https). */
+async function compartirApp() {
+  const url = /^https?:$/.test(location.protocol) ? `${location.origin}${location.pathname}` : '';
+  if (!url) { toast('Comparte la app desde su dirección web publicada.'); return; }
+  try {
+    if (navigator.share) {
+      await navigator.share({ title: 'Ruta Académica', text: 'Organiza tus notas, metas y puntajes de admisión. Gratis y sin anuncios.', url });
+      return;
+    }
+    await navigator.clipboard.writeText(url);
+    toast('Enlace copiado: ¡gracias por compartir Ruta Académica!');
+  } catch (e) {
+    if (e?.name !== 'AbortError') toast(`Copia este enlace para compartir: ${url}`, null, { duracion: 9000 });
+  }
 }
 
 function marcarNovedades(ids) {
   store.config.novedadesLeidas = [...new Set([...store.config.novedadesLeidas, ...ids])];
   guardar();
   renderCampana();
+}
+
+/* ---------- (v26) Puntos de control: resúmenes guardados para comparar el avance ---------- */
+
+/**
+ * Resumen ACTUAL del perfil activo, con la misma forma que guarda un punto de control:
+ * promedio general (todos los períodos), NEM (solo perfiles escolares de 1°–4° Medio), puntaje
+ * ponderado de la carrera elegida, último puntaje de cada prueba PAES y promedio de cada asignatura
+ * (emparejada por nombre entre períodos). Son ~2 KB: nunca se copian las notas completas.
+ */
+function resumenActual() {
+  const p = perfil();
+  const todos = p.asignaturas.map(a => Calc.analizarAsignatura(a, p.escala));
+  const porAsig = Calc.promediosPorAsignatura(todos, p.periodos);
+  const ens = p.ensayos.map(e => ({ fecha: e.fecha, puntaje: puntajeEnsayo(e).valor, prueba: pruebaEnsayo(e.prueba)?.componente || e.prueba }));
+  const paes = {};
+  for (const [k, r] of Object.entries(Calc.resumenEnsayos(ens))) {
+    if (RE_CLAVE_PAES.test(k) && Number.isFinite(r.ultimo?.puntaje)) paes[k] = r.ultimo.puntaje;
+  }
+  const nem = esEscolar(p) && REF.AÑOS_MEDIA.includes(p.nivel) ? nemActual() : { prom: null, puntaje: null };
+  const sel = store.catalogoCortes.find(c => c.id === p.admision.seleccion) || null;
+  const pond = sel ? Calc.puntajePonderado(puntajesEfectivos(), sel.ponderaciones).total : null;
+  return {
+    escala: { ...p.escala },
+    general: Calc.promedioAcumulado(todos),
+    nem: { prom: nem.prom ?? null, puntaje: nem.puntaje ?? null },
+    ponderado: Number.isFinite(pond) ? Calc.redondear(pond, 2) : null,
+    carrera: sel ? `${sel.carrera} · ${sel.universidad}` : '',
+    paes,
+    asignaturas: porAsig.slice(0, 80).map(x => ({
+      clave: x.clave.slice(0, 80), nombre: x.nombre, promedio: x.promedio === null ? null : Calc.redondear(x.promedio, 3),
+    })),
+  };
+}
+
+const fechaSnap = ms => new Date(ms).toLocaleDateString('es-CL', { day: 'numeric', month: 'short', year: 'numeric' });
+const fechaHoraSnap = ms => new Date(ms).toLocaleString('es-CL', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+
+/**
+ * Guarda un punto de control del perfil activo. Tope MAX_SNAPSHOTS: al llegar, uno automático deja
+ * espacio quitando el automático más antiguo; uno manual pide borrar alguno (nunca se pierde uno
+ * manual en silencio). Devuelve el punto creado o null.
+ */
+function guardarSnapshot(etiqueta, origen = 'manual') {
+  const p = perfil();
+  if (p.snapshots.length >= MAX_SNAPSHOTS) {
+    const iAuto = p.snapshots.findIndex(s => s.origen === 'auto');
+    if (iAuto >= 0) p.snapshots.splice(iAuto, 1);
+    else {
+      if (origen === 'manual') toast(`Llegaste al máximo de ${MAX_SNAPSHOTS} puntos de control. Elimina alguno antiguo para guardar otro.`);
+      return null;
+    }
+  }
+  const s = snapshotSano({ id: uid(), etiqueta: etiqueta || `Punto de control · ${fechaSnap(Date.now())}`, creado: Date.now(), origen, ...resumenActual() });
+  if (!s) return null;
+  p.snapshots.push(s);
+  return s;
+}
+
+/** Antes de una acción masiva (importar notas, agregar una malla, eliminar un período): punto automático. */
+function puntoAutomatico(motivo) {
+  const p = perfil();
+  if (!p.asignaturas.length && !p.ensayos.length) return;   // sin datos no hay nada que comparar después
+  const s = guardarSnapshot(`Antes de ${motivo} · ${fechaSnap(Date.now())}`, 'auto');
+  if (s) snapshotComparado = s.id;
+}
+
+let snapshotComparado = null;   // id del punto de control que se compara con el estado actual
+function abrirSnapshots() {
+  const lista = perfil().snapshots;
+  if (!lista.some(s => s.id === snapshotComparado)) snapshotComparado = lista.at(-1)?.id ?? null;
+  renderSnapshots();
+  $('#dlg-snapshots').showModal();
+}
+
+/** Etiqueta legible de cada fila de la comparación. */
+function etiquetaFilaSnapshot(f) {
+  if (f.tipo === 'paes') return `PAES · ${etiquetaComponente(f.clave)}`;
+  return f.etiqueta;
+}
+/** Formato según el tipo: notas con los decimales de la escala, puntajes con 1 decimal. */
+const esNotaSnap = f => f.tipo === 'general' || f.tipo === 'asignatura' || f.clave === 'nem-prom';
+const esEnteroSnap = f => f.tipo === 'paes' || f.clave === 'nem-pts';   // puntajes PAES y NEM: enteros
+function fmtFilaSnapshot(f, x) {
+  if (esNotaSnap(f)) return fmt(x);
+  return esEnteroSnap(f) ? (Number.isFinite(x) ? String(Math.round(x)) : '—') : fmtPts(x);
+}
+function deltaFilaSnapshot(f) {
+  if (f.delta === null) return '<span class="muted">sin dato</span>';
+  const d = esNotaSnap(f) ? decDelta() : esEnteroSnap(f) ? 0 : 1;
+  const sufijo = f.tipo === 'paes' || f.tipo === 'ponderado' || f.clave === 'nem-pts' ? ' pts' : '';
+  return `<span class="delta ${claseSigno(f.delta, d)}">${fmtSigno(f.delta, d)}${sufijo}</span>`;
+}
+
+function htmlComparacionSnapshot(s) {
+  const filas = Calc.compararResumenes(s, resumenActual());
+  if (!filas.length) return '<p class="muted">Aún no hay datos para comparar: agrega notas o ensayos y vuelve aquí.</p>';
+  const principales = filas.filter(f => f.tipo !== 'asignatura');
+  const ramos = filas.filter(f => f.tipo === 'asignatura')
+    .sort((a, b) => Math.abs(b.delta ?? 0) - Math.abs(a.delta ?? 0));
+  const fila = f => `
+    <tr><th scope="row">${esc(etiquetaFilaSnapshot(f))}</th>
+      <td class="num">${fmtFilaSnapshot(f, f.antes)}</td><td class="num">${fmtFilaSnapshot(f, f.ahora)}</td><td class="num">${deltaFilaSnapshot(f)}</td></tr>`;
+  const cambiaron = ramos.filter(f => f.delta !== null && Math.abs(f.delta) >= 0.005).length;
+  return `
+    <div class="tabla-scroll">
+      <table class="tabla tabla-snap">
+        <caption class="visualmente-oculto">Comparación entre “${esc(s.etiqueta)}” y hoy</caption>
+        <thead><tr><th scope="col">Indicador</th><th scope="col">${esc(fechaSnap(s.creado))}</th><th scope="col">Hoy</th><th scope="col">Cambio</th></tr></thead>
+        <tbody>${principales.map(fila).join('')}</tbody>
+        ${ramos.length ? `<tbody class="snap-ramos"><tr><th colspan="4" class="snap-sub" scope="colgroup">Por asignatura · ${cambiaron} con cambios</th></tr>${ramos.map(fila).join('')}</tbody>` : ''}
+      </table>
+    </div>
+    ${s.carrera ? `<p class="nota-aviso">Ponderado de ese momento calculado para: ${esc(s.carrera)}.</p>` : ''}`;
+}
+
+function renderSnapshots() {
+  const p = perfil();
+  const lista = p.snapshots.slice().reverse();   // más reciente primero
+  const sel = lista.find(s => s.id === snapshotComparado) || null;
+  $('#snapshots-cuerpo').innerHTML = `
+    <div class="seccion-cab"><h2>Puntos de control</h2><button type="button" class="btn ghost sm" data-action="cerrar-dialogo">Cerrar ✕</button></div>
+    <p class="nota-aviso">Guarda cómo vas hoy (promedios, NEM, PAES y ponderado) y compáralo después: “¿cuánto tenía hace un mes?”. Se guardan en este navegador, dentro del perfil “${esc(p.nombre)}” (máximo ${MAX_SNAPSHOTS}).</p>
+    <form class="form-snapshot" data-form-snapshot autocomplete="off">
+      <input name="etiqueta" maxlength="60" placeholder="Ej. Cierre Trimestre 1 · Antes del ensayo 4" aria-label="Nombre del punto de control">
+      <button class="btn primario sm" type="submit">Guardar punto de control</button>
+    </form>
+    ${lista.length ? `
+      <ul class="lista-snapshots" aria-label="Puntos de control guardados">${lista.map(s => `
+        <li class="snap-item ${s.id === snapshotComparado ? 'activo' : ''}">
+          <button type="button" class="snap-elegir" data-action="snapshot-comparar" data-id="${esc(s.id)}" aria-pressed="${s.id === snapshotComparado}">
+            <strong>${esc(s.etiqueta)}</strong>
+            <small>${esc(fechaHoraSnap(s.creado))}${s.origen === 'auto' ? ' · automático' : ''}${s.general !== null ? ` · promedio ${fmt(s.general)}` : ''}</small>
+          </button>
+          <button type="button" class="icono snap-borrar" data-action="snapshot-eliminar" data-id="${esc(s.id)}" title="Eliminar este punto de control" aria-label="Eliminar ${esc(s.etiqueta)}">✕</button>
+        </li>`).join('')}</ul>
+      <div class="snap-comparacion" aria-live="polite">
+        ${sel ? `<h3>“${esc(sel.etiqueta)}” → hoy</h3>${htmlComparacionSnapshot(sel)}` : '<p class="muted">Elige un punto de control para compararlo con hoy.</p>'}
+      </div>
+      <div class="fila-botones snap-pie">
+        <button type="button" class="btn ghost sm peligro" data-action="snapshot-limpiar-auto" ${lista.some(s => s.origen === 'auto') ? '' : 'disabled'}>Eliminar los automáticos</button>
+      </div>`
+    : '<p class="muted vacio-lista">Todavía no guardas ninguno. Se crea uno automático antes de importar notas, agregar ramos de una malla o eliminar un período.</p>'}`;
 }
 
 /* =========================================================
@@ -5063,10 +5461,7 @@ document.addEventListener('click', e => {
   }
   // Cerrar el menú "Más" al hacer clic fuera
   document.querySelectorAll('details.menu[open]').forEach(d => { if (!d.contains(e.target)) d.removeAttribute('open'); });
-  if (!e.target.closest('.flotante-ancla')) {
-    document.querySelectorAll('.panel-flotante').forEach(x => { x.hidden = true; });
-    document.querySelectorAll('[data-action="novedades"], [data-action="apoyar"]').forEach(b => b.setAttribute('aria-expanded', 'false'));
-  }
+  if (!e.target.closest('.flotante-ancla')) cerrarFlotantes();
 
   const btn = e.target.closest('[data-action]');
   if (!btn) return;
@@ -5120,7 +5515,7 @@ document.addEventListener('click', e => {
     case 'guia-anterior': guia.paso = Math.max(0, guia.paso - 1); renderGuia(); break;
     case 'guia-ir': guia.paso = Number(btn.dataset.paso); renderGuia(); break;
     case 'guia-accion': {
-      // Lleva directo a la función del paso (la guía se cierra; se puede reabrir con "(?)")
+      // Lleva directo a la función del paso (la guía se cierra; se puede reabrir desde Ayuda)
       $('#dlg-guia').close();
       const accion = btn.dataset.accion;
       // v16: al cerrar el Perfil (o el importador) se vuelve a la guía en este mismo paso
@@ -5146,6 +5541,26 @@ document.addEventListener('click', e => {
     case 'novedades-leer-todas': marcarNovedades(REF.NOVEDADES.map(n => n.id)); break;
     case 'apoyar': alternarFlotante('#panel-apoyo', btn); break;
     case 'apoyar-proximamente': e.preventDefault(); toast('¡Gracias! El enlace de donaciones estará disponible próximamente.'); break;
+    case 'compartir-app': compartirApp(); break;
+    /* --- Puntos de control (v26) --- */
+    case 'abrir-snapshots': abrirSnapshots(); break;
+    case 'snapshot-comparar': snapshotComparado = btn.dataset.id; renderSnapshots(); $(`#snapshots-cuerpo [data-action="snapshot-comparar"][data-id="${CSS.escape(btn.dataset.id)}"]`)?.focus(); break;
+    case 'snapshot-eliminar': {
+      const s = p.snapshots.find(x => x.id === btn.dataset.id);
+      if (!s) return;
+      conDeshacer(`Punto de control “${s.etiqueta}” eliminado`, () => { p.snapshots = p.snapshots.filter(x => x.id !== s.id); });
+      if (snapshotComparado === s.id) snapshotComparado = p.snapshots.at(-1)?.id ?? null;
+      renderSnapshots();
+      break;
+    }
+    case 'snapshot-limpiar-auto': {
+      const n = p.snapshots.filter(x => x.origen === 'auto').length;
+      if (!n) return;
+      conDeshacer(`${n} punto(s) de control automáticos eliminados`, () => { p.snapshots = p.snapshots.filter(x => x.origen !== 'auto'); });
+      if (!p.snapshots.some(x => x.id === snapshotComparado)) snapshotComparado = p.snapshots.at(-1)?.id ?? null;
+      renderSnapshots();
+      break;
+    }
     case 'abrir-papelera': abrirGestion('papelera'); break;
     case 'gestion-tab': gestion = { tab: btn.dataset.tab, sel: new Set() }; renderGestion(); break;
     case 'enviar-papelera': enviarAPapelera([...gestion.sel]); gestion.sel.clear(); break;
@@ -5202,6 +5617,7 @@ document.addEventListener('click', e => {
       if (p.periodos.length === 1) { toast('Debe existir al menos un período'); return; }
       const per = p.periodos.find(x => x.id === p.periodoActivo);
       if (!per) return;
+      puntoAutomatico(`eliminar ${per.nombre}`);   // v26: queda registro de cómo ibas antes de borrarlo
       conDeshacer(`“${per.nombre}” eliminado`, () => {
         p.asignaturas = p.asignaturas.filter(a => a.periodoId !== per.id);
         p.periodos = p.periodos.filter(x => x.id !== per.id);
@@ -5370,6 +5786,7 @@ document.addEventListener('click', e => {
       const s = p.uni.malla.semestres[btn.dataset.sem];
       const destino = esConsolidado() ? p.periodos.at(-1).id : p.periodoActivo;
       const antes = new Set(p.asignaturas.map(a => a.id));
+      puntoAutomatico(`agregar ramos de ${s.nombre}`);
       const n = agregarAsignaturas(s.ramos.map(r => r.nombre), destino, metaInicialAsignatura(p));
       mostrarAgregadas(p, destino, antes);
       renderMalla();
@@ -5456,7 +5873,14 @@ document.addEventListener('click', e => {
       break;
     }
     case 'ensayos-al-simulador': ensayosAlSimulador(btn.dataset.modo); break;
-    case 'alternar-tema': alternarTema(btn); break;
+    case 'alternar-tema': alternarFlotante('#panel-tema', btn); break;
+    case 'elegir-tema': {
+      elegirTema(btn.dataset.tema, btn);
+      renderPanelTema();
+      $(`#panel-tema [data-tema="${CSS.escape(btn.dataset.tema)}"]`)?.focus();
+      toast(`Fondo: ${TEMAS[store.config.tema].nombre}`);
+      break;
+    }
     case 'fecha-quitar': {
       const cal = p.calendario;
       const ev = cal.eventos.find(x => x.id === btn.dataset.id);
@@ -6032,6 +6456,15 @@ document.addEventListener('submit', e => {
 
   if (f.matches('[data-menu-form]')) { guardarNombrePeriodo(); return; }
   if (f.matches('[data-form-ensayo]')) { guardarEnsayo(); return; }
+  if (f.matches('[data-form-snapshot]')) {
+    const s = guardarSnapshot(String(datos.get('etiqueta') || '').trim().slice(0, 60), 'manual');
+    if (!s) return;
+    snapshotComparado = s.id;
+    guardar(); renderSnapshots();
+    toast(`Punto de control guardado: “${s.etiqueta}”`);
+    $('#snapshots-cuerpo [name=etiqueta]')?.focus();
+    return;
+  }
   if (f.matches('[data-form-fecha]')) {
     const nombre = String(datos.get('nombre') || '').trim();
     const fecha = String(datos.get('fecha') || '');

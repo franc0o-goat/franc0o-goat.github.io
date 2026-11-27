@@ -12,13 +12,15 @@
        IBM Plex Sans (lectura) · JetBrains Mono (cifras). Google Fonts sirve latin y latin-ext. -->
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:ital,wght@0,400;0,500;0,600;1,400;1,500&family=JetBrains+Mono:wght@400..800&family=Plus+Jakarta+Sans:wght@500..800&family=Space+Grotesk:wght@500..700&display=swap">
   <link rel="stylesheet" href="styles.css">
-  <!-- Tema: oscuro por defecto; si se eligió el claro (sol/luna) se aplica antes de pintar, sin destello -->
+  <!-- Tema (v26): Oscuro por defecto; Claro, Pizarra, Medianoche o Automático (sigue al sistema).
+       Se aplica antes de pintar, sin destello. Solo se aceptan valores de esta lista. -->
   <script>
     (function () {
-      try {
-        var t = localStorage.getItem('rutaAcademica.tema');
-        if (t === 'dark' || t === 'light') document.documentElement.setAttribute('data-theme', t);
-      } catch (e) { /* sin almacenamiento: queda el oscuro predeterminado */ }
+      var t = 'dark';
+      try { t = localStorage.getItem('rutaAcademica.tema') || 'dark'; } catch (e) { /* sin almacenamiento */ }
+      if (t === 'auto') t = window.matchMedia && matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark';
+      if (['dark', 'light', 'onyx', 'pizarra'].indexOf(t) < 0) t = 'dark';
+      document.documentElement.setAttribute('data-theme', t);
     })();
   </script>
 </head>
@@ -106,15 +108,19 @@
     <div class="sb-grupo sb-grupo-atajos" data-grupo="atajos">
       <button class="sb-grupo-cab" data-action="sb-grupo" data-grupo="atajos" aria-expanded="true" aria-controls="sb-g-atajos"><span>Herramientas</span><i class="sb-grupo-punto" aria-hidden="true"></i><svg class="sb-chevron" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M8.6 5.6 7.2 7l5 5-5 5 1.4 1.4L15 12z"/></svg></button>
       <div class="sb-atajos sb-grupo-cuerpo" id="sb-g-atajos" aria-label="Atajos">
-        <button class="sb-atajo" data-action="abrir-foto"><span aria-hidden="true">⇪</span> <span class="sb-atajo-txt">Importar notas</span></button>
-        <button class="sb-atajo" data-action="abrir-fechas"><span aria-hidden="true">◷</span> <span class="sb-atajo-txt">Fechas clave</span></button>
-        <button class="sb-atajo" data-action="abrir-ayuda"><span aria-hidden="true">?</span> <span class="sb-atajo-txt">Ayuda</span></button>
+        <button class="sb-atajo" data-action="abrir-foto" title="Importar notas desde una foto, un PDF o texto"><span aria-hidden="true">⇪</span> <span class="sb-atajo-txt">Importar notas</span></button>
+        <button class="sb-atajo" data-action="abrir-snapshots" title="Puntos de control: guarda y compara tu avance"><span aria-hidden="true">⚑</span> <span class="sb-atajo-txt">Puntos de control</span></button>
+        <button class="sb-atajo" data-action="abrir-fechas" title="Feriados y fechas clave"><span aria-hidden="true">◷</span> <span class="sb-atajo-txt">Fechas clave</span></button>
+        <button class="sb-atajo" data-action="abrir-ayuda" title="Ayuda: qué hace cada función"><span aria-hidden="true">?</span> <span class="sb-atajo-txt">Ayuda</span></button>
       </div>
     </div>
 
     <div class="perfil-bar sb-pie">
-      <!-- Tema: sol en modo oscuro (activa el claro) y luna en modo claro (activa el oscuro) -->
-      <button class="btn ghost sm btn-tema" id="btn-tema" data-action="alternar-tema" aria-label="Activar modo claro" title="Activar modo claro"></button>
+      <!-- v26: selector de fondo (Claro · Pizarra · Oscuro · Medianoche · Automático) -->
+      <div class="flotante-ancla">
+        <button class="btn ghost sm btn-tema" id="btn-tema" data-action="alternar-tema" aria-haspopup="dialog" aria-expanded="false" aria-controls="panel-tema" aria-label="Cambiar fondo" title="Cambiar fondo"></button>
+        <div id="panel-tema" class="panel-flotante panel-tema" role="dialog" aria-label="Fondo de la app" hidden></div>
+      </div>
       <!-- Bandeja de novedades -->
       <div class="flotante-ancla">
         <button class="btn ghost sm btn-campana" data-action="novedades" aria-haspopup="dialog" aria-expanded="false" aria-label="Novedades y avisos">
@@ -123,37 +129,42 @@
         </button>
         <div id="panel-novedades" class="panel-flotante panel-novedades" role="dialog" aria-label="Novedades" hidden></div>
       </div>
-      <!-- Apoyo (provisional: aún sin enlace de donaciones) -->
-      <div class="flotante-ancla">
-        <button class="btn ghost sm btn-apoyar" data-action="apoyar" aria-haspopup="dialog" aria-expanded="false" title="Apoyar Ruta Académica">♥ <span class="txt-apoyar">Apoyar</span></button>
-        <div id="panel-apoyo" class="panel-flotante panel-apoyo" role="dialog" aria-label="Apoyar el proyecto" hidden>
-          <div class="apoyo-cab"><span class="apoyo-corazon" aria-hidden="true">♥</span><strong>Apoya Ruta Académica</strong></div>
-          <p>Es gratis y sin anuncios. Tu aporte ayuda a mantenerla y a sumar mejoras para más estudiantes.</p>
-          <a class="btn primario sm btn-donar" href="#" aria-disabled="true" data-action="apoyar-proximamente">Donar (muy pronto)</a>
-          <p class="nota-aviso">Mientras tanto, compartirla también ayuda mucho.</p>
-        </div>
-      </div>
+      <!-- v26: menú "Más" agrupado por tipo de acción: perfiles · tus datos · ayuda · zona de riesgo (al final, separada) -->
       <details class="menu">
         <summary class="btn ghost sm" aria-label="Más opciones">Más ▾</summary>
         <div class="menu-lista" role="menu">
+          <p class="menu-grupo" role="presentation">Perfiles</p>
           <button role="menuitem" data-action="nuevo-perfil">+ Nuevo perfil</button>
           <button role="menuitem" data-action="abrir-gestion">Gestionar perfiles…</button>
           <button role="menuitem" data-action="abrir-papelera">Papelera de perfiles <span id="n-papelera" class="pill" hidden>0</span></button>
-          <button role="menuitem" data-action="abrir-foto">Importar notas (foto o PDF)</button>
-          <button role="menuitem" data-action="abrir-fechas">Feriados y fechas clave…</button>
-          <hr>
-          <button role="menuitem" data-action="abrir-guia">Guía de inicio (paso a paso)</button>
-          <button role="menuitem" data-action="abrir-ayuda">Ayuda: qué hace cada función (?)</button>
-          <hr>
+          <p class="menu-grupo" role="presentation">Tus datos</p>
+          <button role="menuitem" data-action="abrir-snapshots">Puntos de control (comparar avance)…</button>
           <button role="menuitem" data-action="abrir-ficha">Exportar ficha de notas (PDF / TXT / CSV)…</button>
           <button role="menuitem" data-action="exportar-todo">Exportar respaldo (todo)</button>
           <button role="menuitem" data-action="exportar-perfil">Exportar perfil actual</button>
           <button role="menuitem" data-action="importar-respaldo">Importar respaldo…</button>
-          <hr>
+          <p class="menu-grupo" role="presentation">Ayuda</p>
+          <button role="menuitem" data-action="abrir-guia">Guía de inicio (paso a paso)</button>
+          <button role="menuitem" data-action="abrir-ayuda">Ayuda: qué hace cada función</button>
+          <p class="menu-grupo menu-grupo-riesgo" role="presentation">Zona de riesgo</p>
           <button role="menuitem" data-action="cargar-ejemplo">Cargar datos de ejemplo</button>
           <button role="menuitem" class="peligro" data-action="reiniciar">Reiniciar todo</button>
         </div>
       </details>
+      <!-- Apoyo (v26: más visible). El enlace de donaciones aún no existe: el botón lo indica y ofrece compartir -->
+      <div class="flotante-ancla ancla-apoyar">
+        <button class="btn sm btn-apoyar" data-action="apoyar" aria-haspopup="dialog" aria-expanded="false" aria-controls="panel-apoyo" title="Apoyar Ruta Académica">
+          <svg class="ico-apoyar" viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><path fill="currentColor" d="M12 21.2 10.6 20C5.4 15.3 2 12.2 2 8.4 2 5.3 4.4 3 7.5 3c1.7 0 3.4.8 4.5 2.1A6 6 0 0 1 16.5 3C19.6 3 22 5.3 22 8.4c0 3.8-3.4 6.9-8.6 11.6L12 21.2Z"/></svg>
+          <span class="txt-apoyar">Apoyar</span>
+        </button>
+        <div id="panel-apoyo" class="panel-flotante panel-apoyo" role="dialog" aria-label="Apoyar el proyecto" hidden>
+          <div class="apoyo-cab"><span class="apoyo-corazon" aria-hidden="true">♥</span><strong>Apoya Ruta Académica</strong></div>
+          <p>Es gratis y sin anuncios. Tu aporte ayuda a mantenerla y a sumar mejoras para más estudiantes.</p>
+          <a class="btn primario sm btn-donar" href="#" aria-disabled="true" data-action="apoyar-proximamente">Donar (muy pronto)</a>
+          <button type="button" class="btn sm btn-compartir" data-action="compartir-app">Compartir con un amigo</button>
+          <p class="nota-aviso">Mientras llega la opción de donar, compartirla es la mejor ayuda.</p>
+        </div>
+      </div>
     </div>
   </header>
 
@@ -219,6 +230,8 @@
   <dialog id="dlg-perfiles" class="dlg-medio" aria-label="Perfiles y papelera"><div id="perfiles-cuerpo" class="form-dialogo"></div></dialog>
   <dialog id="dlg-fechas" class="dlg-medio" aria-label="Feriados y fechas clave"><div id="fechas-cuerpo" class="form-dialogo"></div></dialog>
   <dialog id="dlg-corte" class="dlg-medio" aria-label="Carrera del catálogo"><form id="form-corte" class="form-dialogo" autocomplete="off"></form></dialog>
+  <!-- v26: puntos de control (resúmenes guardados para comparar el avance) -->
+  <dialog id="dlg-snapshots" class="dlg-medio dlg-snapshots" aria-label="Puntos de control"><div id="snapshots-cuerpo" class="form-dialogo"></div></dialog>
 
   <!-- Entradas de archivo ocultas -->
   <input type="file" id="archivo-respaldo" accept="application/json,.json" hidden>
@@ -236,6 +249,7 @@
   <!-- v17: nombre de la sección al navegar desde la barra inferior del celular -->
   <div id="etiqueta-seccion" class="etiqueta-seccion" aria-live="polite" hidden></div>
 
+  <!-- v26: con un diálogo abierto, app.js mueve el aviso dentro de él para que "Deshacer" se pueda pulsar -->
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
 
   <!-- Orden: datos → cálculo → extractor → interfaz -->

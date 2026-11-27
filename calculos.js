@@ -974,6 +974,123 @@ const Calc = (() => {
     return esNota(puntajes.cl) && esNota(puntajes.m1) ? (puntajes.cl + puntajes.m1) / 2 : null;
   }
 
+  /* =========================================================
+   * (v26) PALANCA DE IMPACTO: dónde rinde más el mismo esfuerzo
+   * ========================================================= */
+
+  /**
+   * (13) Palanca en notas. Para cada asignatura ABIERTA (con ponderación pendiente y sin cierre manual):
+   *   supuesto x0 = nota que hoy se proyecta en lo pendiente (su promedio actual; si no tiene notas,
+   *                 su meta o, en último caso, la nota de aprobación), dentro de la escala.
+   *   subida      = mín(paso, máx − x0)         → nunca se proyecta sobre la nota máxima
+   *   ΔAsignatura = f_i · subida                 (f_i = W_P / W: fracción del ramo aún en juego)
+   *   ΔGeneral    = w_i · ΔAsignatura / Σ w      (w = créditos o 1, como el promedio general)
+   * También indica la evaluación pendiente que más pesa en ese ramo (dónde concentrar el estudio).
+   * Ramos cerrados al 100 %, cerrados a mano o ya en la nota máxima quedan fuera (sin NaN ni ÷0).
+   * Devuelve la lista ordenada de mayor a menor ΔGeneral.
+   */
+  function palancaNotas(analisis, escala, opciones = {}) {
+    const lista = Array.isArray(analisis) ? analisis : [];
+    const min = Number(escala?.min), max = Number(escala?.max);
+    const paso = Number(opciones.paso);
+    if (!lista.length || !Number.isFinite(min) || !Number.isFinite(max) || !(max - min > EPS) || !(paso > 0)) return [];
+    const W = lista.reduce((s, a) => s + pesoAsignatura(a.asig), 0);
+    if (!(W > EPS)) return [];
+    const salida = [];
+    for (const a of lista) {
+      if (a.cerradaManual || !(a.pesos?.total > EPS) || !(a.pesos.pendiente > EPS)) continue;
+      const f = a.pesos.pendiente / a.pesos.total;
+      if (!(f > EPS) || !Number.isFinite(f)) continue;
+      const supuesto = [a.actual, a.asig.meta, escala.aprobacion].find(esNota);
+      const x0 = limitar(esNota(supuesto) ? supuesto : min, min, max);
+      const subida = Math.min(paso, max - x0);
+      if (!(subida > EPS)) continue;
+      const deltaAsignatura = f * subida;
+      const deltaGeneral = (pesoAsignatura(a.asig) * deltaAsignatura) / W;
+      if (!Number.isFinite(deltaGeneral)) continue;
+      // Evaluación pendiente con más ponderación (en la lista expandida, un control cuenta por separado)
+      const pend = (a.evals || []).filter(ev => !estaCalificada(ev) && peso(ev) > 0);
+      const top = pend.reduce((m, ev) => (!m || peso(ev) > peso(m) ? ev : m), null);
+      salida.push({
+        id: a.asig.id, nombre: a.asig.nombre, f, x0, subida, limitada: subida < paso - EPS,
+        deltaAsignatura, deltaGeneral,
+        evalTop: top ? { id: top.id, nombre: top.nombre, pesoPct: (peso(top) / a.pesos.total) * 100, deltaAsignatura: (peso(top) / a.pesos.total) * subida } : null,
+      });
+    }
+    return salida.sort((x, y) => y.deltaGeneral - x.deltaGeneral || y.f - x.f);
+  }
+
+  /**
+   * (14) Palanca en admisión: cuánto sube el puntaje ponderado si una prueba PAES sube `paso` puntos
+   *      (tope 1000), con las ponderaciones de la carrera. 'electiva' se resuelve sola: subir la prueba
+   *      que no es tu mejor electiva solo suma si llega a superarla.
+   *      `extra` agrega palancas ya calculadas por la app (ej. NEM: { k: 'nem', delta, detalle }).
+   * Sin ponderaciones, sin puntaje en una prueba o con la prueba en 1000 → esa prueba no aparece.
+   * Devuelve { items (ordenados), sinDato (pruebas que ponderan pero no tienen puntaje), motivo } — motivo 'sin-ponderaciones' | 'sin-puntajes' | null.
+   */
+  const PRUEBAS_PALANCA = ['cl', 'm1', 'm2', 'ciencias', 'historia'];
+  function palancaAdmision(puntajes, ponderaciones, opciones = {}) {
+    const paso = Number(opciones.paso) > 0 ? Number(opciones.paso) : 30;
+    const pond = ponderaciones && typeof ponderaciones === 'object' ? ponderaciones : {};
+    const pesoDe = k => { const w = Number(pond[k]); return Number.isFinite(w) && w > 0 ? w : 0; };
+    if (!COMPONENTES_ADMISION.some(k => pesoDe(k) > 0)) return { items: [], sinDato: [], motivo: 'sin-ponderaciones' };
+    const p = puntajes && typeof puntajes === 'object' ? puntajes : {};
+    const base = puntajePonderado(p, pond).parcial;
+    const items = [], sinDato = [];
+    let conDato = 0;
+    for (const k of PRUEBAS_PALANCA) {
+      const pondera = pesoDe(k) > 0 || ((k === 'ciencias' || k === 'historia') && pesoDe('electiva') > 0);
+      if (!pondera) continue;
+      if (!esNota(p[k])) { sinDato.push(k); continue; }
+      conDato++;
+      const sube = Math.min(paso, 1000 - p[k]);
+      if (!(sube > EPS)) continue;
+      const delta = puntajePonderado({ ...p, [k]: p[k] + sube }, pond).parcial - base;
+      if (Number.isFinite(delta) && delta > EPS) items.push({ k, sube, delta, limitado: sube < paso - EPS, peso: pesoDe(k) || pesoDe('electiva') });
+    }
+    for (const x of Array.isArray(opciones.extra) ? opciones.extra : []) {
+      if (x && typeof x.k === 'string' && Number.isFinite(x.delta) && x.delta > EPS) { items.push(x); conDato++; }
+    }
+    items.sort((a, b) => b.delta - a.delta);
+    return { items, sinDato, motivo: items.length ? null : conDato ? null : 'sin-puntajes' };
+  }
+
+  /* =========================================================
+   * (v26) PUNTOS DE CONTROL: comparación entre dos resúmenes
+   * ========================================================= */
+
+  /**
+   * (15) Compara dos resúmenes { general, nem: { prom, puntaje }, ponderado, paes: { k: pts },
+   *      asignaturas: [{ clave, nombre, promedio }] } → filas { tipo, clave, etiqueta, antes, ahora, delta }.
+   *      delta = ahora − antes solo cuando ambos son números finitos (si no, null: "sin dato").
+   *      Las asignaturas se emparejan por clave normalizada (nunca por posición).
+   */
+  function compararResumenes(antes, ahora) {
+    const A = antes && typeof antes === 'object' ? antes : {};
+    const B = ahora && typeof ahora === 'object' ? ahora : {};
+    const fila = (tipo, clave, etiqueta, x, y) => ({
+      tipo, clave, etiqueta, antes: esNota(x) ? x : null, ahora: esNota(y) ? y : null,
+      delta: esNota(x) && esNota(y) ? y - x : null,
+    });
+    const filas = [
+      fila('general', 'general', 'Promedio general', A.general, B.general),
+      fila('nem', 'nem-prom', 'Promedio NEM', A.nem?.prom, B.nem?.prom),
+      fila('nem', 'nem-pts', 'Puntaje NEM', A.nem?.puntaje, B.nem?.puntaje),
+      fila('ponderado', 'ponderado', 'Puntaje ponderado', A.ponderado, B.ponderado),
+    ];
+    const clavesPaes = [...new Set([...Object.keys(A.paes || {}), ...Object.keys(B.paes || {})])].sort();
+    for (const k of clavesPaes) filas.push(fila('paes', k, k, A.paes?.[k], B.paes?.[k]));
+    const mapa = new Map();
+    for (const x of Array.isArray(A.asignaturas) ? A.asignaturas : []) mapa.set(x.clave, { nombre: x.nombre, antes: x.promedio, ahora: null });
+    for (const x of Array.isArray(B.asignaturas) ? B.asignaturas : []) {
+      const m = mapa.get(x.clave) || { nombre: x.nombre, antes: null };
+      mapa.set(x.clave, { ...m, nombre: x.nombre, ahora: x.promedio });
+    }
+    for (const [clave, m] of mapa) filas.push(fila('asignatura', clave, m.nombre, m.antes, m.ahora));
+    // Sin dato en ambos lados no aporta nada a la comparación
+    return filas.filter(f => f.antes !== null || f.ahora !== null);
+  }
+
   return {
     EPS, redondear, redondearArriba, limitar, peso, estaCalificada,
     esBloque, expandirEvaluaciones, notaBloque, estaCompleta,
@@ -985,5 +1102,6 @@ const Calc = (() => {
     metaMaximaAlcanzable, promedioPeriodo, promedioAcumulado, promedioAnualEscolar,
     rectaAsignatura, planMetaGeneral, aportesAlGeneral, pesoAsignatura, claveAsignatura, promediosPorAsignatura, diasEntre, puntajeDesdeCorrectas, resumenEnsayos,
     promedioNEM, puntajeNEM, parsearTablaNEM,
+    palancaNotas, palancaAdmision, compararResumenes,
   };
 })();

@@ -2463,6 +2463,7 @@ const REF = (() => {
    * tipo: 'version' | 'mejora' | 'aviso'. El `id` sirve para recordar cuáles se leyeron.
    * ========================================================= */
   const NOVEDADES = [
+    { id: 'v26', tipo: 'version', titulo: 'Versión 26', fecha: '2026-11-26', texto: 'Elige el fondo de la app (Claro, Pizarra, Oscuro, Medianoche o Automático) con el botón de paleta. Nuevo “Mayor impacto”: te dice en qué asignatura (o prueba PAES) el mismo esfuerzo sube más tu promedio o tu ponderado. Y “Puntos de control” para guardar cómo vas y comparar después.' },
     { id: 'v20', tipo: 'version', titulo: 'Versión 20', fecha: '2026-11-26', texto: 'Nueva sección “Métodos de estudio” con técnicas por materia, mensajes adaptados a tu nivel (básica, media, 3°–4° medio o universidad) y sugerencias de nota más realistas: si tu meta ya está asegurada, te lo decimos en vez de pedirte un 1.0.' },
     { id: 'v14', tipo: 'version', titulo: 'Versión 14', fecha: '2026-11-26', texto: 'Nueva sección “Universidades” con sus sitios oficiales, escalas de conversión por prueba en PAES, décimas aplicadas a una evaluación (con recomendación de dónde conviene usarlas), metas por asignatura opcionales con aviso si no alcanzan tu meta general, avisos de ponderaciones incompletas y botón “Ir a mis notas” siempre a mano.' },
     { id: 'v13', tipo: 'version', titulo: 'Versión 13', fecha: '2026-11-25', texto: 'Registra tus ensayos PAES en “PAES → Mis ensayos”: convierte tus respuestas correctas con las tablas oficiales de DEMRE, muestra tu evolución, mejor puntaje y promedio por prueba, y puede llevarlos al simulador. Además, el cambio de tema ahora tiene una transición animada.' },
@@ -2536,7 +2537,8 @@ const REF = (() => {
         '<strong>Más ▾ → Exportar respaldo</strong> descarga un archivo con tus datos; <strong>Importar respaldo</strong> los recupera.',
         '<strong>Exportar ficha de notas</strong> genera un resumen en PDF, TXT o CSV (no es un documento oficial).',
         'Si eliminas un perfil, va a la <strong>Papelera</strong>: puedes restaurarlo durante el plazo configurado.',
-        '¿Dudas? El botón <strong>(?)</strong> junto a los períodos abre la ayuda en cualquier momento.',
+        '¿Dudas? <strong>Herramientas → Ayuda</strong> (en el celular: <strong>Más ▾ → Ayuda</strong>) abre la ayuda en cualquier momento.',
+        '<strong>Puntos de control</strong> (Herramientas o Más ▾) guarda cómo vas hoy y lo compara después: promedios, NEM, PAES y ponderado.',
       ],
     },
   ];
@@ -2562,15 +2564,17 @@ const REF = (() => {
     { seccion: 'Promedios y metas generales', items: [
       ['Promedio del período', 'Media de los promedios de las asignaturas del período elegido.'],
       ['Consolidado', 'Muestra todos los períodos juntos (promedio general acumulado).'],
-      ['Reordenar y renombrar períodos', 'Arrastra un período para cambiar su orden. Clic derecho (o mantenerlo presionado en el celular, o el botón “⋯ Período”) abre el menú para renombrarlo o moverlo. Con teclado: Alt+← / Alt+→.'],
+      ['Reordenar y renombrar períodos', 'Arrastra un período para cambiar su orden. Clic derecho (o mantenerlo presionado en el celular, o el botón “Período ▾”) abre el menú para renombrarlo, moverlo o eliminarlo (con opción de deshacer). Con teclado: Alt+← / Alt+→.'],
       ['Aporte al general', '“Aporta” es la parte del promedio general que pone cada asignatura (la columna suma tu promedio). “Efecto” es cuánto sube o baja tu general por incluirla. Con créditos (universitario) se pondera por créditos.'],
       ['Asignaturas repetidas', 'Si dos asignaturas del mismo período tienen el mismo nombre (sin contar tildes ni mayúsculas), la app te avisa y puedes unificarlas sin perder notas.'],
       ['Meta de promedio general', 'Tu meta para el promedio de todas las asignaturas. “Aplicar metas sugeridas” cambia las metas de cada asignatura.'],
       ['Promoción escolar', 'Orientación según el criterio estándar chileno (Decreto 67/2018). La decisión oficial es del establecimiento.'],
+      ['Mayor impacto', 'Compara el mismo esfuerzo en cada asignatura abierta (+0,3 sobre tu ritmo actual en lo que queda) y muestra cuál sube más tu promedio, según cuánto le falta por rendir y sus créditos. Las cerradas o ya en la nota máxima no aparecen.'],
     ] },
     { seccion: 'NEM y admisión', items: [
       ['Calculadora NEM', 'Promedia tus años de 1° a 4° Medio de ESTE perfil (automático del año actual o escritos a mano) y los convierte con la tabla oficial.'],
       ['Simulador de admisión', 'Calcula tu puntaje ponderado con tus puntajes y las ponderaciones de la carrera, y muestra el aporte de cada prueba.'],
+      ['Dónde rinde más tu esfuerzo', 'En el simulador: cuánto sube tu ponderado con +30 puntos en cada prueba PAES (o +0,3 en tu promedio del año, vía NEM) para la carrera elegida. Es una estimación.'],
       ['Catálogo de carreras', 'Ponderaciones de ejemplo y sin cortes oficiales: edítalas o agrega carreras con datos reales.'],
       ['Sección PAES', 'Explica la PAES, sus pruebas y los temarios de la Admisión 2027 (DEMRE). Es información de referencia: confirma siempre en demre.cl.'],
     ] },
@@ -2580,6 +2584,8 @@ const REF = (() => {
       ['Respaldo', 'Archivo con todos tus datos para guardarlos o pasarlos a otro navegador.'],
       ['Deshacer', 'Tras eliminar o importar aparece “Deshacer” unos segundos abajo en la pantalla.'],
       ['Papelera de perfiles', 'Los perfiles eliminados se guardan ahí y se borran solos tras el plazo (7, 15 o 30 días).'],
+      ['Puntos de control', 'Guardan un resumen (promedios, NEM, PAES y ponderado) con nombre y fecha para compararlo después con tu estado actual. Máximo 20 por perfil; se crea uno automático antes de importar notas, agregar ramos de una malla o eliminar un período.'],
+      ['Fondo de la app', 'El botón de paleta (abajo en la barra lateral, arriba en el celular) cambia entre Claro, Pizarra, Oscuro, Medianoche o Automático.'],
     ] },
   ];
 
