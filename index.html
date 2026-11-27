@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Ruta Académica</title>
+  <title>Notitas y al pie</title>
   <link rel="icon" type="image/svg+xml" href="logo.svg">
   <!-- Tipografía (opcional: sin conexión se usan las fuentes del sistema) -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -12,13 +12,14 @@
        IBM Plex Sans (lectura) · JetBrains Mono (cifras). Google Fonts sirve latin y latin-ext. -->
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:ital,wght@0,400;0,500;0,600;1,400;1,500&family=JetBrains+Mono:wght@400..800&family=Plus+Jakarta+Sans:wght@500..800&family=Space+Grotesk:wght@500..700&display=swap">
   <link rel="stylesheet" href="styles.css">
-  <!-- Tema (v26): Oscuro por defecto; Claro, Pizarra, Medianoche o Automático (sigue al sistema).
-       Se aplica antes de pintar, sin destello. Solo se aceptan valores de esta lista. -->
+  <!-- Tema (v27): si nunca elegiste uno, sigue al sistema (claro u oscuro). Si elegiste Claro, Pizarra,
+       Oscuro o Medianoche, se respeta siempre. Se aplica antes de pintar, sin destello; solo valores de esta lista. -->
+  <meta name="color-scheme" content="dark light">
   <script>
     (function () {
-      var t = 'dark';
-      try { t = localStorage.getItem('rutaAcademica.tema') || 'dark'; } catch (e) { /* sin almacenamiento */ }
-      if (t === 'auto') t = window.matchMedia && matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark';
+      var t = null;
+      try { t = localStorage.getItem('rutaAcademica.tema'); } catch (e) { /* sin almacenamiento: se sigue al sistema */ }
+      if (!t || t === 'auto') t = window.matchMedia && matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
       if (['dark', 'light', 'onyx', 'pizarra'].indexOf(t) < 0) t = 'dark';
       document.documentElement.setAttribute('data-theme', t);
     })();
@@ -29,8 +30,12 @@
   <header class="sidebar" id="sidebar">
     <!-- v20: en pantallas medianas la barra queda como columna de íconos; este botón la despliega -->
     <button class="btn-menu-lateral" data-action="alternar-sidebar" aria-expanded="false" aria-controls="sidebar" title="Mostrar menú completo" aria-label="Mostrar menú completo"><span aria-hidden="true">☰</span></button>
+    <!-- v27: zona desplazable de la barra (marca, perfil, navegación y herramientas). El pie (Apoyar, fondo,
+         novedades, Más) queda FUERA y fijo abajo: así sus paneles flotantes no se recortan con el scroll.
+         En el celular este contenedor usa display: contents y no cambia la barra superior. -->
+    <div class="sb-scroll" id="sb-scroll">
     <div class="marca">
-      <!-- v19: logo de Ruta Académica (libro abierto + trayectoria que sube), degradado según el tema -->
+      <!-- v19: logo de Notitas y al pie (libro abierto + trayectoria que sube), degradado según el tema -->
       <span class="logo" aria-hidden="true"><svg class="logo-svg" viewBox="0 0 68 54" fill="none" stroke-linecap="round" stroke-linejoin="round">
         <defs><linearGradient id="logo-grad" x1="4" y1="46" x2="64" y2="4" gradientUnits="userSpaceOnUse">
           <stop offset="0" style="stop-color: var(--logo-1)"/><stop offset=".55" style="stop-color: var(--logo-2)"/><stop offset="1" style="stop-color: var(--logo-3)"/>
@@ -45,7 +50,7 @@
         </g>
       </svg></span>
       <div class="marca-texto">
-        <h1>Ruta Académica</h1>
+        <h1>Notitas y al pie</h1>
         <p id="contexto-perfil"></p>
       </div>
     </div>
@@ -114,6 +119,7 @@
         <button class="sb-atajo" data-action="abrir-ayuda" title="Ayuda: qué hace cada función"><span aria-hidden="true">?</span> <span class="sb-atajo-txt">Ayuda</span></button>
       </div>
     </div>
+    </div><!-- /.sb-scroll -->
 
     <div class="perfil-bar sb-pie">
       <!-- v26: selector de fondo (Claro · Pizarra · Oscuro · Medianoche · Automático) -->
@@ -153,12 +159,12 @@
       </details>
       <!-- Apoyo (v26: más visible). El enlace de donaciones aún no existe: el botón lo indica y ofrece compartir -->
       <div class="flotante-ancla ancla-apoyar">
-        <button class="btn sm btn-apoyar" data-action="apoyar" aria-haspopup="dialog" aria-expanded="false" aria-controls="panel-apoyo" title="Apoyar Ruta Académica">
+        <button class="btn sm btn-apoyar" data-action="apoyar" aria-haspopup="dialog" aria-expanded="false" aria-controls="panel-apoyo" title="Apoyar Notitas y al pie">
           <svg class="ico-apoyar" viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><path fill="currentColor" d="M12 21.2 10.6 20C5.4 15.3 2 12.2 2 8.4 2 5.3 4.4 3 7.5 3c1.7 0 3.4.8 4.5 2.1A6 6 0 0 1 16.5 3C19.6 3 22 5.3 22 8.4c0 3.8-3.4 6.9-8.6 11.6L12 21.2Z"/></svg>
           <span class="txt-apoyar">Apoyar</span>
         </button>
         <div id="panel-apoyo" class="panel-flotante panel-apoyo" role="dialog" aria-label="Apoyar el proyecto" hidden>
-          <div class="apoyo-cab"><span class="apoyo-corazon" aria-hidden="true">♥</span><strong>Apoya Ruta Académica</strong></div>
+          <div class="apoyo-cab"><span class="apoyo-corazon" aria-hidden="true">♥</span><strong>Apoya Notitas y al pie</strong></div>
           <p>Es gratis y sin anuncios. Tu aporte ayuda a mantenerla y a sumar mejoras para más estudiantes.</p>
           <a class="btn primario sm btn-donar" href="#" aria-disabled="true" data-action="apoyar-proximamente">Donar (muy pronto)</a>
           <button type="button" class="btn sm btn-compartir" data-action="compartir-app">Compartir con un amigo</button>

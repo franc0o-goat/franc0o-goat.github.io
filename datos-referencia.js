@@ -219,7 +219,7 @@ const REF = (() => {
     }));
     return {
       universidad, carrera, semestres,
-      fuente: 'Plantilla referencial genérica de Ruta Académica (no oficial)',
+      fuente: 'Plantilla referencial genérica de Notitas y al pie (no oficial)',
       version: VERSION,
       actualizada: new Date().toISOString().slice(0, 10),
     };
@@ -406,7 +406,7 @@ const REF = (() => {
     'Universidad del Bío-Bío (UBB)': 'Enfermería|Fonoaudiología|Nutrición y Dietética|Psicología|Trabajo Social|Arquitectura|Diseño|Ingeniería Comercial|Contador Auditor|Ingeniería Civil Industrial|Ingeniería Civil en Informática|Ingeniería Civil Mecánica|Construcción Civil|Pedagogía en Educación Básica|Educación Parvularia',
     'Universidad Alberto Hurtado (UAH)': 'Derecho|Psicología|Sociología|Trabajo Social|Ciencia Política|Antropología|Periodismo|Historia|Filosofía|Economía|Ingeniería Comercial|Pedagogía en Educación Básica|Pedagogía en Lenguaje y Comunicación|Pedagogía en Historia y Ciencias Sociales',
   };
-  const FUENTE_ILUSTRATIVA = 'Plantilla ilustrativa de Ruta Académica: ponderaciones de ejemplo y sin corte cargado. Reemplázalas con los datos oficiales.';
+  const FUENTE_ILUSTRATIVA = 'Plantilla ilustrativa de Notitas y al pie: ponderaciones de ejemplo y sin corte cargado. Reemplázalas con los datos oficiales.';
   const CATALOGO_CORTES = [
     ['Universidad de Chile (UChile)', 'Ingeniería y Ciencias (Plan Común)', 'ingenieria'],
     ['Pontificia Universidad Católica de Chile (PUC)', 'Ingeniería', 'ingenieria'],
@@ -2463,6 +2463,7 @@ const REF = (() => {
    * tipo: 'version' | 'mejora' | 'aviso'. El `id` sirve para recordar cuáles se leyeron.
    * ========================================================= */
   const NOVEDADES = [
+    { id: 'v29-nombre', tipo: 'version', titulo: 'Nuevo nombre: Notitas y al pie', fecha: '2026-11-27', texto: 'Ruta Académica ahora se llama “Notitas y al pie”: lo mismo de siempre, cortito y al pie. Tus perfiles, notas y respaldos siguen intactos.' },
     { id: 'v26', tipo: 'version', titulo: 'Versión 26', fecha: '2026-11-26', texto: 'Elige el fondo de la app (Claro, Pizarra, Oscuro, Medianoche o Automático) con el botón de paleta. Nuevo “Mayor impacto”: te dice en qué asignatura (o prueba PAES) el mismo esfuerzo sube más tu promedio o tu ponderado. Y “Puntos de control” para guardar cómo vas y comparar después.' },
     { id: 'v20', tipo: 'version', titulo: 'Versión 20', fecha: '2026-11-26', texto: 'Nueva sección “Métodos de estudio” con técnicas por materia, mensajes adaptados a tu nivel (básica, media, 3°–4° medio o universidad) y sugerencias de nota más realistas: si tu meta ya está asegurada, te lo decimos en vez de pedirte un 1.0.' },
     { id: 'v14', tipo: 'version', titulo: 'Versión 14', fecha: '2026-11-26', texto: 'Nueva sección “Universidades” con sus sitios oficiales, escalas de conversión por prueba en PAES, décimas aplicadas a una evaluación (con recomendación de dónde conviene usarlas), metas por asignatura opcionales con aviso si no alcanzan tu meta general, avisos de ponderaciones incompletas y botón “Ir a mis notas” siempre a mano.' },
@@ -2473,7 +2474,7 @@ const REF = (() => {
     { id: 'v7', tipo: 'version', titulo: 'Versión 7', fecha: '2026-11-25', texto: 'Puntajes de corte 2026 para 1.008 carreras de 22 universidades, buscador de carreras (escribe o desliza), enfoque institucional de cada universidad e importación de informes de notas completos con varias asignaturas.' },
     { id: 'v6', tipo: 'version', titulo: 'Versión 6', fecha: '2026-11-25', texto: 'Aviso de promoción escolar, décimas extra por asignatura, guía de inicio y ayuda (?), NEM solo con los datos del perfil activo, aporte de cada prueba en el simulador de admisión y catálogo ampliado a más de 400 carreras de 22 universidades.' },
     { id: 'v5', tipo: 'version', titulo: 'Versión 5', fecha: '2026-11-24', texto: 'Tablas NEM oficiales 2026–2027 incluidas, exportar ficha de notas (PDF, TXT o CSV), lectura de fotos más estable, estado “Cerrada” visible en la lista y currículum agrupado por área.' },
-    { id: 'aviso-respaldo', tipo: 'aviso', titulo: 'Tus datos viven en este navegador', texto: 'Ruta Académica guarda todo localmente. Exporta un respaldo de vez en cuando desde “Más ▾ → Exportar respaldo”.' },
+    { id: 'aviso-respaldo', tipo: 'aviso', titulo: 'Tus datos viven en este navegador', texto: 'Notitas y al pie guarda todo localmente. Exporta un respaldo de vez en cuando desde “Más ▾ → Exportar respaldo”.' },
     { id: 'v4-1', tipo: 'version', titulo: 'Versión 4.1', texto: 'Cierre manual de asignaturas, felicitaciones al registrar notas, “Ir más allá de tu meta”, carrera preferida y consejos que rotan.' },
     { id: 'v4', tipo: 'version', titulo: 'Versión 4', texto: 'Promedio equiponderado automático, ponderaciones en % o decimal (0,25 · 1/4), papelera de perfiles, frase del día y guía para tu próxima evaluación.' },
     { id: 'v3', tipo: 'version', titulo: 'Versión 3', texto: 'Bloques de controles, importar notas desde foto, simulador de admisión con catálogo de carreras, respaldo JSON y “Deshacer”.' },
@@ -2582,10 +2583,10 @@ const REF = (() => {
       ['Importar desde foto', 'Lee el texto de una imagen (o el que pegues), propone las notas y SIEMPRE te pide confirmar antes de guardar.'],
       ['Exportar ficha', 'Resumen de notas en PDF, TXT o CSV. Es un documento personal, sin validez oficial.'],
       ['Respaldo', 'Archivo con todos tus datos para guardarlos o pasarlos a otro navegador.'],
-      ['Deshacer', 'Tras eliminar o importar aparece “Deshacer” unos segundos abajo en la pantalla.'],
+      ['Deshacer', 'Tras eliminar o importar aparece “Deshacer” unos segundos abajo en la pantalla. También puedes pulsar Ctrl + Z (Cmd + Z en Mac) fuera de los campos de texto.'],
       ['Papelera de perfiles', 'Los perfiles eliminados se guardan ahí y se borran solos tras el plazo (7, 15 o 30 días).'],
       ['Puntos de control', 'Guardan un resumen (promedios, NEM, PAES y ponderado) con nombre y fecha para compararlo después con tu estado actual. Máximo 20 por perfil; se crea uno automático antes de importar notas, agregar ramos de una malla o eliminar un período.'],
-      ['Fondo de la app', 'El botón de paleta (abajo en la barra lateral, arriba en el celular) cambia entre Claro, Pizarra, Oscuro, Medianoche o Automático.'],
+      ['Fondo de la app', 'El botón de paleta (abajo en la barra lateral, arriba en el celular) cambia entre Claro, Pizarra, Oscuro, Medianoche o Automático. Mientras no elijas uno, la app sigue el tema claro u oscuro de tu sistema; lo que elijas se recuerda.'],
     ] },
   ];
 

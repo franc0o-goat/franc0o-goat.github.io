@@ -1,6 +1,6 @@
 'use strict';
 /**
- * calculos.js — Motor matemático de "Ruta Académica".
+ * calculos.js — Motor matemático de "Notitas y al pie".
  *
  * Aquí viven TODAS las fórmulas. Son funciones puras: reciben datos y devuelven
  * resultados, sin tocar el DOM ni localStorage. Así se pueden revisar y probar aisladas

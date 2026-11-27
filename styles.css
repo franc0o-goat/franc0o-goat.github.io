@@ -1,4 +1,4 @@
-/* styles.css — Ruta Académica v11
+/* styles.css — Notitas y al pie v11
  * Dirección visual: oscuro profundo por defecto (negro #0F0F0F y grafitos escalonados, en la
  * línea del modo oscuro de YouTube) reimaginado con energía propia: violeta eléctrico como tinta
  * principal, rosa "chispa" como firma de marca y un halo de color asimétrico; estados con
@@ -2885,3 +2885,76 @@ dialog { border: 1px solid var(--border-fuerte); border-image: none; }
 .cab-controles .btn-eliminar-asig { margin-left: auto; }
 .cab-controles .btn-eliminar-asig:not(:hover) { color: color-mix(in srgb, var(--bad) 80%, var(--muted)); }
 @media (max-width: 640px) { .cab-controles .btn-eliminar-asig { margin-left: 0; } }
+
+/* =========================================================
+ * v27 · Barra lateral con desplazamiento interno
+ *   La barra ocupa exactamente el alto visible (100dvh: descuenta las barras del navegador móvil/tablet).
+ *   Solo .sb-scroll se desplaza (rueda, táctil y teclado); el pie (Apoyar, fondo, novedades, Más)
+ *   queda fijo abajo y fuera del scroll, para que sus paneles flotantes no se recorten.
+ * ========================================================= */
+@media (min-width: 861px) {
+  .sidebar { height: 100vh; height: 100dvh; max-height: 100dvh; overflow: visible; }
+  body.sb-abierta .sidebar { overflow: visible; }          /* antes: overflow-y en toda la barra (recortaba los paneles) */
+  .sb-scroll {
+    flex: 1 1 auto; min-height: 0;                          /* min-height: 0 permite que el flex encoja y aparezca el scroll */
+    display: flex; flex-direction: column; gap: inherit;
+    overflow-y: auto; overflow-x: hidden; overscroll-behavior: contain;
+    margin-inline: -8px; padding: 2px 8px 8px;              /* aire para los anillos de foco y la barra de scroll */
+    scroll-padding-block: 12px;
+  }
+  body:not(.sb-abierta) .sb-scroll { align-items: center; width: calc(100% + 16px); }
+  .sb-pie { flex: none; }
+}
+/* Celular: el contenedor no existe a efectos de diseño (la barra superior y la inferior siguen igual) */
+@media (max-width: 860px) {
+  .sb-scroll { display: contents; }
+}
+
+/* [SCROLLBAR-SIDEBAR] ─ Ajusta aquí el grosor y los colores de la barra de desplazamiento lateral ─
+ *   --sb-scroll-ancho         grosor en Safari/Chrome antiguos (Firefox y Chrome actuales usan "thin")
+ *   --sb-scroll-pulgar        color de la parte que se arrastra
+ *   --sb-scroll-pulgar-hover  color al pasar el cursor
+ *   --sb-scroll-riel          fondo del riel (transparent = sin riel visible)                      */
+:root {
+  --sb-scroll-ancho: 8px;
+  --sb-scroll-pulgar: color-mix(in srgb, var(--muted) 40%, transparent);
+  --sb-scroll-pulgar-hover: color-mix(in srgb, var(--muted) 75%, transparent);
+  --sb-scroll-riel: transparent;
+}
+.sb-scroll { scrollbar-width: thin; scrollbar-color: var(--sb-scroll-pulgar) var(--sb-scroll-riel); }
+.sb-scroll::-webkit-scrollbar { width: var(--sb-scroll-ancho); }
+.sb-scroll::-webkit-scrollbar-track { background: var(--sb-scroll-riel); }
+.sb-scroll::-webkit-scrollbar-thumb {
+  background-color: var(--sb-scroll-pulgar); border-radius: 99px;
+  border: 2px solid transparent; background-clip: padding-box;
+}
+.sb-scroll::-webkit-scrollbar-thumb:hover { background-color: var(--sb-scroll-pulgar-hover); }
+/* [/SCROLLBAR-SIDEBAR] */
+
+/* =========================================================
+ * v28 · Mini-celebración de nota excelente (sobria): sello breve sobre el campo + pulso suave.
+ *   No bloquea clics, no desplaza el diseño (posición absoluta) y respeta "reducir movimiento".
+ * ========================================================= */
+.celda-excelente { position: relative; }
+.celda-excelente > input { border-color: var(--ok); box-shadow: 0 0 0 3px var(--ok-soft); transition: box-shadow var(--anim-media), border-color var(--anim-media); }
+.sello-excelente {
+  position: absolute; right: 4px; top: -11px; z-index: 3;   /* montado sobre el borde del campo: no tapa la fila de arriba */ pointer-events: none; white-space: nowrap;
+  padding: 2px 8px; border-radius: 99px; font-size: .7rem; font-weight: 750; letter-spacing: .01em; line-height: 1.5;
+  color: var(--ok); background: var(--surface); border: 1px solid color-mix(in srgb, var(--ok) 55%, var(--border));
+  box-shadow: 0 4px 12px -6px rgba(0, 0, 0, .5);
+}
+@media (prefers-reduced-motion: no-preference) {
+  .sello-excelente { animation: sello-aparece 2.8s var(--curva) both; }
+  .celda-excelente > input { animation: pulso-excelente 1.1s ease-out 1; }
+}
+@keyframes sello-aparece {
+  0% { opacity: 0; transform: translateY(4px) scale(.96); }
+  10%, 82% { opacity: 1; transform: none; }
+  100% { opacity: 0; transform: translateY(-2px); }
+}
+@keyframes pulso-excelente {
+  0% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--ok) 45%, transparent); }
+  100% { box-shadow: 0 0 0 8px transparent; }
+}
+/* Aviso de nota excelente: mismo aviso de siempre con una estrella discreta (sin degradado ni emoji que salta) */
+.toast.excelente > span:first-child::before { content: "★ "; }

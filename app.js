@@ -1,6 +1,6 @@
 'use strict';
 /**
- * app.js — Interfaz de Ruta Académica (v4).
+ * app.js — Interfaz de Notitas y al pie (v4).
  * Estado, persistencia (localStorage + respaldo JSON), dibujado (render) y eventos.
  * No contiene fórmulas: el cálculo vive en `Calc` (calculos.js), los datos referenciales en
  * `REF` (datos-referencia.js) y la extracción de notas desde texto en `Importador` (importador.js).
@@ -24,7 +24,7 @@
   const aviso = document.createElement('div');
   aviso.setAttribute('role', 'alert');
   aviso.style.cssText = 'position:fixed;inset:16px;z-index:9999;display:grid;place-content:center;gap:10px;padding:24px;border-radius:14px;background:#111114;color:#f4f4f5;border:1px solid #2e2e37;font:16px system-ui;text-align:center';
-  aviso.textContent = `Ruta Académica no pudo cargar completa (faltan: ${faltan.join(', ')}). Recarga con Ctrl+F5. Tus datos siguen guardados en este navegador.`;
+  aviso.textContent = `Notitas y al pie no pudo cargar completa (faltan: ${faltan.join(', ')}). Recarga con Ctrl+F5. Tus datos siguen guardados en este navegador.`;
   document.body.appendChild(aviso);
   throw new Error(`Dependencias faltantes: ${faltan.join(', ')}`);
 })();
@@ -52,7 +52,7 @@ const MODALIDADES = { ch: 'Escolar Científico-Humanista', tp: 'Escolar Técnico
 const TEMAS = {
   light:   { nombre: 'Claro',      detalle: 'Día: gris claro y descansado' },
   pizarra: { nombre: 'Pizarra',    detalle: 'Carbón suave' },
-  dark:    { nombre: 'Oscuro',     detalle: 'El clásico de Ruta Académica' },
+  dark:    { nombre: 'Oscuro',     detalle: 'El clásico de Notitas y al pie' },
   onyx:    { nombre: 'Medianoche', detalle: 'Negro profundo (pantallas OLED)' },
   auto:    { nombre: 'Automático', detalle: 'Sigue el tema de tu sistema' },
 };
@@ -368,16 +368,22 @@ function migrarCalendario(c) {
   return cal;
 }
 
-/** Tema elegido antes de la v26 (se guardaba solo en su propia clave): 'light' o 'dark'. */
-function temaLegado() {
-  try { const t = localStorage.getItem(CLAVE_TEMA); return Object.hasOwn(TEMAS, t) ? t : 'dark'; } catch { return 'dark'; }
+/**
+ * (v27) Tema guardado aparte (CLAVE_TEMA). Esa clave SOLO se escribe cuando el usuario elige un fondo a mano
+ * (antes con el sol/luna, desde la v26 con el selector), así que su presencia indica una elección explícita.
+ * Devuelve el valor si es válido, o null.
+ */
+function temaGuardadoAparte() {
+  try { const t = localStorage.getItem(CLAVE_TEMA); return Object.hasOwn(TEMAS, t) ? t : null; } catch { return null; }
 }
+/** Tema inicial: la elección guardada o, si nunca se eligió, 'auto' (sigue al sistema). */
+const temaLegado = () => temaGuardadoAparte() ?? 'auto';
 
 function storeVacio() {
   const p = nuevoPerfil();
   return {
     version: 4, perfilActivo: p.id, perfiles: [p], papelera: [], tablasNEM: {}, vista: 'notas', subvista: 'nem',
-    catalogoCortes: clonar(REF.CATALOGO_CORTES), config: { ocrTesseract: false, diasPapelera: 30, novedadesLeidas: [], tema: temaLegado() },
+    catalogoCortes: clonar(REF.CATALOGO_CORTES), config: { ocrTesseract: false, diasPapelera: 30, novedadesLeidas: [], tema: temaLegado(), temaManual: temaGuardadoAparte() !== null },
   };
 }
 
@@ -432,9 +438,18 @@ function normalizarStore(s) {
     ocrTesseract: cfg.ocrTesseract === true,
     diasPapelera: DIAS_PAPELERA.includes(cfg.diasPapelera) ? cfg.diasPapelera : base.config.diasPapelera,
     novedadesLeidas: listaAcotada(cfg.novedadesLeidas, 500).filter(x => typeof x === 'string' && x.length <= 80),
-    // v26: variante de fondo; solo valores de la lista TEMAS (un respaldo antiguo sin tema toma el guardado aparte)
-    tema: Object.hasOwn(TEMAS, cfg.tema) ? cfg.tema : (cfg.tema === undefined ? temaLegado() : ajuste('dark')),
   };
+  // v26/v27: variante de fondo, solo valores de la lista TEMAS. Prevalece la elección manual (temaManual);
+  // sin elección manual se usa 'auto' = tema del sistema (también en stores v26 que guardaron 'dark' por defecto).
+  if (cfg.tema !== undefined && !Object.hasOwn(TEMAS, cfg.tema)) ajuste();
+  if (cfg.temaManual === true && Object.hasOwn(TEMAS, cfg.tema)) {
+    r.config.tema = cfg.tema;
+    r.config.temaManual = true;
+  } else {
+    const aparte = temaGuardadoAparte();
+    r.config.tema = aparte ?? 'auto';
+    r.config.temaManual = aparte !== null;
+  }
   const usadosC = new Set();
   r.catalogoCortes = Array.isArray(s.catalogoCortes)
     ? listaAcotada(s.catalogoCortes, 3000).map(c => carreraCatalogoSana(c, usadosC)).filter(Boolean)
@@ -761,7 +776,33 @@ function feedbackNota(asig, nota, promedioAntes, extra = {}) {
     else if (carreraPreferida()) msg += ` ${fraseCarrera(fraseSinRepetir('carrera'))}`;
   }
   if (avisoNotaEscalada) { msg = `${avisoNotaEscalada} ${msg}`; avisoNotaEscalada = ''; }
-  setTimeout(() => toast(msg, null, { clase: tipo === 'excelente' || perfecta ? 'celebra' : 'animo', duracion: 7000 }), 30);
+  const excelente = tipo === 'excelente' || perfecta;
+  // v28: aviso sobrio (sin degradado ni emoji que salta) + sello breve junto a la nota excelente
+  setTimeout(() => toast(msg, null, { clase: excelente ? 'animo excelente' : 'animo', duracion: 7000 }), 30);
+  if (excelente && extra.ancla) setTimeout(() => selloExcelente(extra.ancla, perfecta), 60);
+}
+
+/**
+ * (v28) Mini-celebración: sello "★ Excelente" (o "★ Nota máxima") y un pulso suave en el campo de la nota.
+ * Se agrega directo al DOM DESPUÉS de redibujar (no está en la plantilla de render): el siguiente render
+ * lo reemplaza, así que nunca se repite al navegar ni en re-renders. Solo se llama cuando la nota CAMBIA a
+ * un valor excelente (umbral = máx − rango/12: 6,5 en la escala 1–7; se adapta a la escala del perfil).
+ * No bloquea clics (pointer-events: none) y con "reducir movimiento" aparece sin animación.
+ */
+let temporizadorSello;
+function selloExcelente(selector, perfecta) {
+  document.querySelectorAll('.sello-excelente').forEach(x => x.remove());
+  document.querySelectorAll('.celda-excelente').forEach(x => x.classList.remove('celda-excelente'));
+  const celda = document.querySelector(`#detalle ${selector}`)?.parentElement;
+  if (!celda) return;
+  celda.classList.add('celda-excelente');
+  const sello = document.createElement('span');
+  sello.className = 'sello-excelente';
+  sello.setAttribute('aria-hidden', 'true');   // el aviso (role=status) ya lo anuncia al lector de pantalla
+  sello.textContent = perfecta ? '★ Nota máxima' : '★ Excelente';
+  celda.appendChild(sello);
+  clearTimeout(temporizadorSello);
+  temporizadorSello = setTimeout(() => { sello.remove(); celda.classList.remove('celda-excelente'); }, 2800);
 }
 const etiquetaComponente = k => REF.COMPONENTES_ADMISION.find(([c]) => c === k)?.[1] ?? k;
 
@@ -846,11 +887,13 @@ function salirYLuego(selectores, fn) {
 
 let temporizadorToast;
 let accionToast = null;
+let accionToastEsDeshacer = false;   // v27: Ctrl/Cmd + Z solo ejecuta acciones "Deshacer" (nunca "Exportar respaldo" u otras)
 /** Toast con acción opcional (ej. "Deshacer"). */
 function toast(msg, accion, opciones = {}) {
   const t = $('#toast');
   t.innerHTML = `${opciones.clase === 'celebra' ? '<span class="toast-emoji" aria-hidden="true">🎉</span>' : ''}<span>${esc(msg)}</span>${accion ? `<button class="toast-btn" data-action="toast-accion">${esc(accion.etiqueta)}</button>` : ''}`;
   accionToast = accion?.fn ?? null;
+  accionToastEsDeshacer = !!accionToast && accion.etiqueta === 'Deshacer';
   // v26: con un diálogo modal abierto, todo lo de afuera queda inerte y el botón "Deshacer" no se podía
   // pulsar (ni con teclado). El aviso se mueve DENTRO del diálogo abierto y vuelve al <body> al cerrarlo.
   const modal = [...document.querySelectorAll('dialog[open]')].filter(d => d.matches(':modal')).at(-1);
@@ -859,6 +902,39 @@ function toast(msg, accion, opciones = {}) {
   t.className = `toast visible ${opciones.clase || ''}`;
   clearTimeout(temporizadorToast);
   temporizadorToast = setTimeout(() => { t.classList.remove('visible'); accionToast = null; }, opciones.duracion ?? (accion ? 7000 : 3200));
+}
+
+/** Ejecuta la acción del aviso (botón o Ctrl+Z) una sola vez y lo oculta. */
+function ejecutarAccionToast() {
+  const fn = accionToast;
+  accionToast = null;
+  accionToastEsDeshacer = false;
+  $('#toast').classList.remove('visible');
+  fn?.();
+}
+
+/**
+ * (v27) Ctrl + Z / Cmd + Z = "Deshacer" del último aviso, mientras siga disponible.
+ * No interfiere con el deshacer nativo del texto: si el foco está en un campo editable (input de texto,
+ * número o fecha, textarea, select o contentEditable) se deja pasar el atajo al navegador.
+ * Sin nada que deshacer no hace nada (ni error ni aviso). Se registra una sola vez (bandera global).
+ */
+const TIPOS_NO_TEXTO = new Set(['checkbox', 'radio', 'button', 'submit', 'reset', 'range', 'color', 'file', 'image']);
+function enCampoEditable(el) {
+  if (!el || el === document.body) return false;
+  if (el.isContentEditable) return true;
+  if (el instanceof HTMLTextAreaElement || el instanceof HTMLSelectElement) return true;
+  return el instanceof HTMLInputElement && !TIPOS_NO_TEXTO.has(el.type);
+}
+if (!window.__rutaAtajoDeshacer) {
+  window.__rutaAtajoDeshacer = true;
+  document.addEventListener('keydown', e => {
+    if (e.key?.toLowerCase() !== 'z' || !(e.ctrlKey || e.metaKey) || e.shiftKey || e.altKey || e.isComposing || e.repeat) return;
+    if (enCampoEditable(e.target) || enCampoEditable(document.activeElement)) return;   // deshacer nativo del texto
+    if (!accionToast || !accionToastEsDeshacer) return;                                  // nada pendiente: sin efecto
+    e.preventDefault();
+    ejecutarAccionToast();
+  });
 }
 
 // v26: al cerrarse el diálogo que contenía el aviso, el aviso vuelve al <body> (sigue visible si aún no vence)
@@ -1024,7 +1100,7 @@ function renderBotonTema() {
 function renderPanelTema() {
   const elegido = store.config.tema;
   $('#panel-tema').innerHTML = `
-    <div class="tema-cab"><strong id="tema-titulo">Fondo de la app</strong><small class="muted">${esc(TEMAS[elegido]?.detalle || '')}</small></div>
+    <div class="tema-cab"><strong id="tema-titulo">Fondo de la app</strong><small class="muted">${esc(TEMAS[elegido]?.detalle || '')}${elegido === 'auto' ? ` · ahora: ${esc(TEMAS[resolverTema('auto')].nombre)}` : ''}${store.config.temaManual ? '' : ' (predeterminado)'}</small></div>
     <div class="tema-muestras" role="radiogroup" aria-labelledby="tema-titulo">
       ${Object.entries(TEMAS).map(([k, t]) => `
         <button type="button" class="tema-muestra" data-action="elegir-tema" data-tema="${k}" role="radio" aria-checked="${k === elegido}"
@@ -1040,8 +1116,15 @@ function renderPanelTema() {
 function sincronizarTema() {
   const efectivo = resolverTema(store.config.tema);
   if (document.documentElement.dataset.theme !== efectivo) document.documentElement.dataset.theme = efectivo;
+  // v27: la copia que lee el <head> refleja SIEMPRE a store.config: con elección manual guarda el tema;
+  // sin ella se borra (así el próximo inicio sigue al sistema). Cubre "Deshacer" e importar respaldos.
+  try {
+    if (store.config.temaManual) { if (localStorage.getItem(CLAVE_TEMA) !== store.config.tema) localStorage.setItem(CLAVE_TEMA, store.config.tema); }
+    else if (localStorage.getItem(CLAVE_TEMA) !== null) localStorage.removeItem(CLAVE_TEMA);
+  } catch { /* sin almacenamiento: el tema dura esta sesión */ }
 }
-consultaOscuro.addEventListener?.('change', () => { if (store.config.tema === 'auto') sincronizarTema(); });
+// v27: mientras el tema sea Automático (predeterminado o elegido), un cambio del sistema se aplica al instante
+consultaOscuro.addEventListener?.('change', () => { if (store.config.tema === 'auto') { sincronizarTema(); renderBotonTema(); } });
 
 /** Cambia el fondo de toda la app con un fundido suave y recuerda la elección. */
 let temaDestino = null;   // tema pedido cuya transición aún no termina (clics seguidos: manda el último)
@@ -1050,6 +1133,7 @@ function elegirTema(elegido, origen) {
   const nuevo = resolverTema(elegido);
   const anterior = temaActual();
   store.config.tema = elegido;
+  store.config.temaManual = true;   // v27: desde aquí la elección prevalece sobre el tema del sistema
   guardar();
   try { localStorage.setItem(CLAVE_TEMA, elegido); } catch { /* sin almacenamiento: dura esta sesión */ }
   renderBotonTema();
@@ -1318,7 +1402,7 @@ function abrirBienvenida() {
         <path d="M33 46V17c-2-3.3-5-5-10-5H13"/><path d="M33 17c2-3.3 5-5 9-5h3"/>
         <path class="logo-ruta" d="M9 40 19 25l12 13 31-31"/><path class="logo-ruta" d="M51 7h11v11"/>
       </g></svg></div>
-    <h2 id="bienvenida-titulo">¡Bienvenido a Ruta Académica!</h2>
+    <h2 id="bienvenida-titulo">¡Bienvenido a Notitas y al pie!</h2>
     <p>Solo necesitas un perfil. Puedes cambiarlo después en “Perfil”.</p>
     <label>¿Cómo se llama tu perfil? <input id="bienvenida-nombre" maxlength="40" placeholder="Ej: Franco · 3° Medio" autocomplete="off"></label>
     <label>Etapa
@@ -4896,7 +4980,7 @@ function confirmarImportacion() {
  * ========================================================= */
 
 const SLOGAN = 'Planifica tus metas, sigue tu progreso';
-const SELLO_FICHA = 'Resumen personal generado por el estudiante con Ruta Académica como apoyo para organizar su estudio. '
+const SELLO_FICHA = 'Resumen personal generado por el estudiante con Notitas y al pie como apoyo para organizar su estudio. '
   + 'No es un certificado ni un documento oficial de ningún establecimiento o institución, y no tiene validez oficial.';
 
 function abrirFicha() {
@@ -5025,7 +5109,7 @@ function htmlFicha(d, detalle) {
     <h1>Ficha de notas</h1>
     <div class="datos">${esc(p.nombre)} · ${esc(contextoPerfil(p))}<br>Alcance: ${esc(d.alcance)} · Escala ${p.escala.min}–${p.escala.max} (aprobación ${p.escala.aprobacion})${p.carreraPreferida && p.modalidad !== 'uni' ? `<br>Carrera preferida: ${esc(p.carreraPreferida)}` : ''}</div>
   </div>
-  <div class="marca"><strong>Ruta Académica</strong>${esc(SLOGAN)}</div>
+  <div class="marca"><strong>Notitas y al pie</strong>${esc(SLOGAN)}</div>
 </header>
 <div class="resumen">
   <div><small>Promedio general</small><strong>${notaFicha(d.general)}</strong></div>
@@ -5046,7 +5130,7 @@ function textoFicha(d, detalle) {
   const linea = c => c.repeat(ancho);
   const col = (s, n, der) => { s = String(s); s = s.length > n ? `${s.slice(0, n - 1)}…` : s; return der ? s.padStart(n) : s.padEnd(n); };
   const out = [
-    `${col('FICHA DE NOTAS', ancho - 16)}Ruta Académica`, col('', ancho - SLOGAN.length) + SLOGAN, linea('='),
+    `${col('FICHA DE NOTAS', ancho - 16)}Notitas y al pie`, col('', ancho - SLOGAN.length) + SLOGAN, linea('='),
     `Perfil:   ${p.nombre} · ${contextoPerfil(p)}`,
     `Alcance:  ${d.alcance}    Escala: ${p.escala.min}–${p.escala.max} (aprobación ${p.escala.aprobacion})`,
     ...(p.carreraPreferida && p.modalidad !== 'uni' ? [`Carrera preferida: ${p.carreraPreferida}`] : []),
@@ -5082,7 +5166,7 @@ function partirTexto(t, ancho) {
 /** CSV con ";" y coma decimal (como lo abre Excel en configuración regional de Chile), con BOM UTF-8. */
 function csvFicha(d, detalle) {
   const c = v => { const s = String(v ?? ''); return /[;"\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s; };
-  const filas = [['Ruta Académica', SLOGAN], ['Ficha de notas', d.perfil.nombre, contextoPerfil(d.perfil)], ['Alcance', d.alcance, 'Generada', fechaFicha(d.generado)], ['Promedio general', notaFicha(d.general)], [],
+  const filas = [['Notitas y al pie', SLOGAN], ['Ficha de notas', d.perfil.nombre, contextoPerfil(d.perfil)], ['Alcance', d.alcance, 'Generada', fechaFicha(d.generado)], ['Promedio general', notaFicha(d.general)], [],
     ['Período', 'Asignatura', 'Meta', 'Promedio actual', 'Estado', 'Evaluación', 'Nota', 'Ponderación']];
   for (const per of d.periodos) {
     for (const a of per.asignaturas) {
@@ -5198,17 +5282,17 @@ document.addEventListener('keydown', e => {
   e.preventDefault();
 });
 
-/** (v26) "Compartir Ruta Académica": hoja nativa del sistema o, si no existe, copia el enlace (solo http/https). */
+/** (v26) "Compartir Notitas y al pie": hoja nativa del sistema o, si no existe, copia el enlace (solo http/https). */
 async function compartirApp() {
   const url = /^https?:$/.test(location.protocol) ? `${location.origin}${location.pathname}` : '';
   if (!url) { toast('Comparte la app desde su dirección web publicada.'); return; }
   try {
     if (navigator.share) {
-      await navigator.share({ title: 'Ruta Académica', text: 'Organiza tus notas, metas y puntajes de admisión. Gratis y sin anuncios.', url });
+      await navigator.share({ title: 'Notitas y al pie', text: 'Organiza tus notas, metas y puntajes de admisión. Gratis y sin anuncios.', url });
       return;
     }
     await navigator.clipboard.writeText(url);
-    toast('Enlace copiado: ¡gracias por compartir Ruta Académica!');
+    toast('Enlace copiado: ¡gracias por compartir Notitas y al pie!');
   } catch (e) {
     if (e?.name !== 'AbortError') toast(`Copia este enlace para compartir: ${url}`, null, { duracion: 9000 });
   }
@@ -5370,9 +5454,9 @@ function renderSnapshots() {
 function exportarRespaldo(soloPerfil) {
   if (soloPerfil) {
     const p = perfil();
-    descargarJSON(`ruta-academica-${slug(p.nombre)}-${hoy()}.json`, { tipo: 'ruta-academica-perfil', version: 4, exportado: new Date().toISOString(), perfil: p });
+    descargarJSON(`notitas-y-al-pie-${slug(p.nombre)}-${hoy()}.json`, { tipo: 'ruta-academica-perfil', version: 4, exportado: new Date().toISOString(), perfil: p });
   } else {
-    descargarJSON(`ruta-academica-respaldo-${hoy()}.json`, { tipo: 'ruta-academica-respaldo', exportado: new Date().toISOString(), ...store });
+    descargarJSON(`notitas-y-al-pie-respaldo-${hoy()}.json`, { tipo: 'ruta-academica-respaldo', exportado: new Date().toISOString(), ...store });
   }
   toast('Respaldo exportado');
 }
@@ -5470,13 +5554,7 @@ document.addEventListener('click', e => {
   const asig = asigSeleccionada();
 
   switch (btn.dataset.action) {
-    case 'toast-accion': {
-      const fn = accionToast;
-      accionToast = null;
-      $('#toast').classList.remove('visible');
-      fn?.();
-      break;
-    }
+    case 'toast-accion': ejecutarAccionToast(); break;
     /* --- Navegación --- */
     case 'vista': {
       store.vista = btn.dataset.vista;
@@ -6174,7 +6252,7 @@ document.addEventListener('change', e => {
       const cambio = n !== null && n !== c.nota;
       const previa = notaPrevia(asig, c.id);
       c.nota = n;
-      if (cambio) feedbackNota(asig, n, antes, { estadoAntes: previoA.estado, previa });
+      if (cambio) feedbackNota(asig, n, antes, { estadoAntes: previoA.estado, previa, ancla: `[data-ctrl="${CSS.escape(c.id)}"] [data-cfield="nota"]` });
     }
     delete sim[asig.id];
     actualizar();
@@ -6196,7 +6274,7 @@ document.addEventListener('change', e => {
         const previa = notaPrevia(asig, ev.id);
         ev.nota = n;
         ev.pendiente = n === null;
-        if (cambio) feedbackNota(asig, n, antes, { estadoAntes: previoA.estado, previa });
+        if (cambio) feedbackNota(asig, n, antes, { estadoAntes: previoA.estado, previa, ancla: `[data-eval="${CSS.escape(ev.id)}"] [data-field="nota"]` });
         break;
       }
       case 'pendiente':
@@ -6527,7 +6605,7 @@ Cancelar: crear otra asignatura igualmente.`)) {
       const idEval = uid();
       asig.evaluaciones.push({ id: idEval, tipo: 'simple', nombre, nota, pendiente: nota === null, peso });
       animar.eval = idEval;
-      if (nota !== null) feedbackNota(asig, nota, antes, { estadoAntes: previoA.estado, previa });
+      if (nota !== null) feedbackNota(asig, nota, antes, { estadoAntes: previoA.estado, previa, ancla: `[data-eval="${CSS.escape(idEval)}"] [data-field="nota"]` });
     }
     delete sim[asig.id];
     actualizar();

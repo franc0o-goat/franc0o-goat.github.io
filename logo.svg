@@ -1,5 +1,5 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 68 54" fill="none" stroke-linecap="round" stroke-linejoin="round">
-  <!-- Ruta Académica · libro abierto + trayectoria que sube (versión sin letras) -->
+  <!-- Notitas y al pie · libro abierto + trayectoria que sube (versión sin letras) -->
   <defs>
     <linearGradient id="g" x1="4" y1="46" x2="64" y2="4" gradientUnits="userSpaceOnUse">
       <stop offset="0" stop-color="#7c5cff"/>
